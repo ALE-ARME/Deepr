@@ -42,8 +42,8 @@ fun QrCodeDialog(
                     modifier = Modifier.size(300.dp),
                     colors =
                         QrCodeColors(
-                            background = AlertDialogDefaults.containerColor,
-                            foreground = MaterialTheme.colorScheme.onSurface,
+                            background = Color.White,
+                            foreground = Color.Black,
                         ),
                     dotShape = DotShape.Circle,
                 ) {
