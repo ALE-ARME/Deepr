@@ -268,7 +268,7 @@ fun HomeScreen(
                     createDeeprObject(link = normalizedLink, name = sharedText.title ?: "")
             } else {
                 Toast
-                    .makeText(context, "Invalid deeplink from shared content", Toast.LENGTH_SHORT)
+                    .makeText(context, context.getString(R.string.invalid_shared_link), Toast.LENGTH_SHORT)
                     .show()
             }
             // Reset shared text even on error to prevent stuck state
@@ -385,7 +385,7 @@ fun HomeScreen(
                                     TooltipDefaults.rememberTooltipPositionProvider(
                                         TooltipAnchorPosition.Below,
                                     ),
-                                tooltip = { PlainTooltip { Text("View Type") } },
+                                tooltip = { PlainTooltip { Text(stringResource(R.string.view_type)) } },
                                 state = rememberTooltipState(),
                             ) {
                                 ViewTypeMenu(currentViewType, {
@@ -604,7 +604,7 @@ fun Content(
             onDismiss = { showDeleteConfirmDialog = null },
             onConfirm = {
                 viewModel.deleteAccount(it.id)
-                Toast.makeText(context, "Deleted", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.deleted), Toast.LENGTH_SHORT).show()
             },
         )
     }
@@ -649,7 +649,7 @@ fun Content(
             is ResetCounter -> {
                 analyticsManager.logEvent(AnalyticsEvents.ITEM_MENU_RESET_COUNTER)
                 viewModel.resetOpenedCount(it.item.id)
-                Toast.makeText(context, "Opened count reset", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.opened_count_reset), Toast.LENGTH_SHORT).show()
             }
 
             is Shortcut -> {
