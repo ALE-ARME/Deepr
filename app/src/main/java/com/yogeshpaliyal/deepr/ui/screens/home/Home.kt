@@ -582,8 +582,24 @@ fun HomeScreen(
                                         },
                                         onLongPress = {
                                             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            val link = clipboardLink?.url ?: ""
-                                            localNavigator.add(AddLinkScreen(createDeeprObject(link = link)))
+                                            var linkToPass = clipboardLink?.url ?: ""
+                                            
+                                            // Fallback: try to read directly from clipboard manager if state is empty
+                                            if (linkToPass.isBlank()) {
+                                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                                val clipData = clipboard.primaryClip
+                                                if (clipData != null && clipData.itemCount > 0) {
+                                                    val text = clipData.getItemAt(0).text?.toString()
+                                                    if (!text.isNullOrBlank()) {
+                                                        val normalized = normalizeLink(text)
+                                                        if (isValidDeeplink(normalized)) {
+                                                            linkToPass = normalized
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            
+                                            localNavigator.add(AddLinkScreen(createDeeprObject(link = linkToPass)))
                                         },
                                     )
                                 },

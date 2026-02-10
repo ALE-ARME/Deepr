@@ -108,6 +108,13 @@ fun AddLinkScreen(
     var deeprInfo by remember(selectedLink.id, selectedLink.link) {
         mutableStateOf(selectedLink)
     }
+
+    // Force update state if selectedLink changes (important for some navigation scenarios)
+    LaunchedEffect(selectedLink.id, selectedLink.link) {
+        if (selectedLink.link.isNotEmpty() && deeprInfo.link.isEmpty()) {
+            deeprInfo = selectedLink
+        }
+    }
     
     var isError by remember { mutableStateOf(false) }
     var isNameError by remember { mutableStateOf(false) }
@@ -131,8 +138,9 @@ fun AddLinkScreen(
 
     // Pre-populate and fetch if link is provided (e.g. from long press)
     LaunchedEffect(deeprInfo.link) {
-        if (isValidDeeplink(deeprInfo.link) && deeprInfo.name.isEmpty()) {
-            fetchMetadata(deeprInfo.link)
+        val normalized = normalizeLink(deeprInfo.link)
+        if (isValidDeeplink(normalized) && deeprInfo.name.isEmpty()) {
+            fetchMetadata(normalized)
         }
     }
 
