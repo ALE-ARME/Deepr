@@ -27,13 +27,13 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build with Gradle
-        run: ./gradlew assembleFreeDebug
+        run: ./gradlew assembleGithubRelease
 
       - name: 🚀 Upload APK to Artifacts 📱
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
-          path: app/build/outputs/apk/free/debug/*.apk
+          name: app-release
+          path: app/build/outputs/apk/github/release/*.apk
           retention-days: 7
 
       - uses: "marvinpinto/action-automatic-releases@latest"
@@ -42,4 +42,4 @@ jobs:
           automatic_release_tag: "latest-master"
           prerelease: true
           title: "Latest Master Build"
-          files: app/build/outputs/apk/free/debug/*.apk
+          files: app/build/outputs/apk/github/release/*.apk
