@@ -35,11 +35,3 @@ jobs:
           name: app-release
           path: app/build/outputs/apk/github/release/*.apk
           retention-days: 7
-
-      - uses: "marvinpinto/action-automatic-releases@latest"
-        with:
-          repo_token: "${{ github.token }}"
-          automatic_release_tag: "latest-master"
-          prerelease: true
-          title: "Latest Master Build"
-          files: app/build/outputs/apk/github/release/*.apk
