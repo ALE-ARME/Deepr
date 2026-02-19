@@ -231,7 +231,6 @@
     <string name="local_server_notification_channel_name">Server Locale</string>
     <string name="local_server_notification_channel_description">Notifiche per lo stato del server locale</string>
     <string name="local_server_notification_text">URL del Server: %s</string>
-    <string name="local_server_notification_text_short">Server: %s</string>
     <string name="local_server_starting">Avvio del server…</string>
     <string name="stop">Ferma</string>
     <string name="server_port">Porta del Server</string>
