@@ -111,6 +111,12 @@
     <string name="shortcut_icon">Icona Scorciatoia</string>
     <string name="use_link_app_icon">Usa l\'icona dell\'app di supporto del link</string>
     <string name="use_deepr_app_icon">Usa l\'icona dell\'app Deepr</string>
+
+    <string name="theme">Tema</string>
+    <string name="theme_dialog_title">Seleziona Tema</string>
+    <string name="theme_light">Chiaro</string>
+    <string name="theme_dark">Scuro</string>
+    <string name="close">Chiudi</string>
     <string name="shortcut_icon_setting">Impostazione Icona Scorciatoia</string>
     <string name="language">Lingua</string>
     <string name="language_description">Cambia la lingua dell\'app</string>
