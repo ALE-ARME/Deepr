@@ -2,7 +2,7 @@ name: Build Stable APK
 on:
   push:
     branches:
-      - 9-doc-readme-updates
+      - 10-feature-localized-web-interface-and-fixes
   workflow_dispatch:
 
 jobs:
