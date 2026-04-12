@@ -2,7 +2,7 @@ name: Build Stable APK
 on:
   push:
     branches:
-      - 5-feat-profiles-and-clipboard-autopopulate
+      - 6-feature-unified-search-links-tags
   workflow_dispatch:
 
 jobs:
@@ -22,7 +22,7 @@ jobs:
           cache: gradle
 
       - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+        run: chmod +x ./gradlew
 
       - name: Force Debug Signing on Release
         run: |
