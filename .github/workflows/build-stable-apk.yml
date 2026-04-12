@@ -2,7 +2,7 @@ name: Build Stable APK
 on:
   push:
     branches:
-      - 7-refactor-add-link-and-cleanup-clipboard
+      - 8-ui-polish-dialogs
   workflow_dispatch:
 
 jobs:
