@@ -252,10 +252,11 @@ fun Dashboard(
                                 } else if (entryItem is Screen) {
                                     entryItem.Content()
                                 }
-                            },
-                            )
                             }
-                            }
-                            }
-                            }
-                            }
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
