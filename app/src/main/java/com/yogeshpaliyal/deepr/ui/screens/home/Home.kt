@@ -16,6 +16,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.ScrollableState
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -254,10 +255,6 @@ fun HomeScreen(
     val searchBarState = rememberSearchBarState()
     val textFieldState = rememberTextFieldState()
 
-    // Clipboard link detection
-    val clipboardLinkState = LocalClipboardLink.current
-    val clipboardLink = clipboardLinkState?.first
-    val resetClipboardLink = clipboardLinkState?.second
     val scope = rememberCoroutineScope()
     val totalLinks by viewModel.countOfLinks.collectAsStateWithLifecycle()
     val favouriteLinks by viewModel.countOfFavouriteLinks.collectAsStateWithLifecycle()
@@ -568,6 +565,9 @@ fun HomeScreen(
         },
         floatingActionButton = {
             if (!showProfilesGrid) {
+                val context = LocalContext.current
+                val hapticFeedback = LocalHapticFeedback.current
+
                 FloatingActionButton(
                     onClick = {},
                 ) {
@@ -578,28 +578,27 @@ fun HomeScreen(
                                 .pointerInput(Unit) {
                                     detectTapGestures(
                                         onTap = {
-                                            localNavigator.add(AddLinkScreen(createDeeprObject()))
+                                            localNavigator.add(AddLinkScreen(createDeeprObject(profileId = currentProfile?.id ?: 1L)))
                                         },
                                         onLongPress = {
                                             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            var linkToPass = clipboardLink?.url ?: ""
-                                            
-                                            // Fallback: try to read directly from clipboard manager if state is empty
-                                            if (linkToPass.isBlank()) {
-                                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                                val clipData = clipboard.primaryClip
-                                                if (clipData != null && clipData.itemCount > 0) {
-                                                    val text = clipData.getItemAt(0).text?.toString()
-                                                    if (!text.isNullOrBlank()) {
-                                                        val normalized = normalizeLink(text)
-                                                        if (isValidDeeplink(normalized)) {
-                                                            linkToPass = normalized
-                                                        }
+                                            var linkToPass = ""
+
+                                            // Read directly from clipboard manager
+                                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                            val clipData = clipboard.primaryClip
+                                            if (clipData != null && clipData.itemCount > 0) {
+                                                val item = clipData.getItemAt(0)
+                                                val text = item.text?.toString()
+                                                if (text != null) {
+                                                    val normalized = normalizeLink(text)
+                                                    if (isValidDeeplink(normalized)) {
+                                                        linkToPass = normalized
                                                     }
                                                 }
                                             }
-                                            
-                                            localNavigator.add(AddLinkScreen(createDeeprObject(link = linkToPass)))
+
+                                            localNavigator.add(AddLinkScreen(createDeeprObject(link = linkToPass, profileId = currentProfile?.id ?: 1L)))
                                         },
                                     )
                                 },
