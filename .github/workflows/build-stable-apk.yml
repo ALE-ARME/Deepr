@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - master
+      - 10-feature-localized-web-interface-and-fixes
       - build/stable-apk
   workflow_dispatch:
 
