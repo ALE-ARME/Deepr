@@ -1,0 +1,45 @@
+name: Build Stable APK
+on:
+  push:
+    branches:
+      - build/stable-apk
+  workflow_dispatch: # Permette anche l'esecuzione manuale
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout specific commit
+        uses: actions/checkout@v4
+        with:
+          ref: ae5e5d853f9c840c8d06e1be3a0f763b1229946a
+
+      - name: set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Force Debug Signing on Release
+        run: |
+          # Extract signingConfigs block
+          sed -n '/signingConfigs {/,/    }/p' app/build.gradle.kts > signing_block.txt
+          # Remove original signingConfigs block
+          sed -i '/signingConfigs {/,/    }/d' app/build.gradle.kts
+          # Insert signingConfigs block before buildTypes
+          sed -i '/buildTypes {/e cat signing_block.txt' app/build.gradle.kts
+          # Link release build to debug signing
+          sed -i '/release {/a \            signingConfig = signingConfigs.getByName("debug")' app/build.gradle.kts
+
+      - name: Build Pro Release APK
+        run: ./gradlew assembleProRelease
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: deepr-stable-pro-release
+          path: app/build/outputs/apk/pro/release/*.apk
