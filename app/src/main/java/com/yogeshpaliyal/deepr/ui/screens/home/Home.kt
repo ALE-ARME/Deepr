@@ -782,12 +782,6 @@ fun HomeScreen(
     }
 }
 
-@Composable
-fun ProfilesGrid(
-    profiles: List<com.yogeshpaliyal.deepr.Profile>,
-    currentProfileId: Long,
-    isReordering: Boolean,
-    contentPaddingValues: PaddingValues,
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
 @Composable
