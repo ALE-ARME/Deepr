@@ -34,11 +34,11 @@ jobs:
           # Link release build to debug signing
           sed -i '/release {/a \            signingConfig = signingConfigs.getByName("debug")' app/build.gradle.kts
 
-      - name: Build Pro Release APK
-        run: ./gradlew assembleProRelease
+      - name: Build Github Release APK
+        run: ./gradlew assembleGithubRelease
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: deepr-stable-pro-release
-          path: app/build/outputs/apk/pro/release/*.apk
+          name: deepr-stable-github-release
+          path: app/build/outputs/apk/github/release/*.apk
