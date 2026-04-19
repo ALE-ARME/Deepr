@@ -61,7 +61,10 @@ class LinkRepositoryImpl(
 
     override suspend fun updateProfilePriority(id: Long, priority: Long) {
         withContext(Dispatchers.IO) {
-            deeprQueries.updateProfilePriority(priority, id)
+            deeprQueries.updateProfilePriority(
+                priority,
+                id,
+            )
         }
         scheduleAutoBackup()
     }
