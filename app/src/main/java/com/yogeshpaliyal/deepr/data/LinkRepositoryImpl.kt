@@ -23,9 +23,14 @@ class LinkRepositoryImpl(
     }
 
     // Profile operations
-    override suspend fun insertProfile(name: String, priority: Long) {
+    override suspend fun insertProfile(name: String, priority: Long?) {
         withContext(Dispatchers.IO) {
-            deeprQueries.insertProfile(name, priority)
+            if (priority != null) {
+                deeprQueries.insertProfileWithPriority(name, priority)
+            } else {
+                val nextPriority = getMaxPriority() + 1
+                deeprQueries.insertProfileWithPriority(name, nextPriority)
+            }
         }
         scheduleAutoBackup()
     }
