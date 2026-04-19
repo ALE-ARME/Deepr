@@ -40,10 +40,10 @@ jobs:
       - name: Build Github Release APK
         run: ./gradlew assembleGithubRelease
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - uses: "marvinpinto/action-automatic-releases@latest"
         with:
-          name: deepr-stable-github-release
-          path: app/build/outputs/apk/github/release/*.apk
-ster Build"
+          repo_token: "${{ github.token }}"
+          automatic_release_tag: "latest-master"
+          prerelease: true
+          title: "Latest Master Build"
           files: app/build/outputs/apk/github/release/*.apk
