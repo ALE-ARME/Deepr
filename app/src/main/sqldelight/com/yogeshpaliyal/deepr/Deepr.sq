@@ -269,6 +269,9 @@ UPDATE Deepr SET isFavourite = ? WHERE id = ?;
 insertProfile:
 INSERT OR IGNORE INTO Profile (name, priority) VALUES (?, ?);
 
+insertProfileWithPriority:
+INSERT OR IGNORE INTO Profile (name, priority) VALUES (?, ?);
+
 getAllProfiles:
 SELECT * FROM Profile ORDER BY priority ASC, createdAt ASC;
 
