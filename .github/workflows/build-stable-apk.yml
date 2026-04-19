@@ -10,6 +10,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -43,3 +45,5 @@ jobs:
         with:
           name: deepr-stable-github-release
           path: app/build/outputs/apk/github/release/*.apk
+ster Build"
+          files: app/build/outputs/apk/github/release/*.apk
