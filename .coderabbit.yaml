@@ -1,4 +1,0 @@
-reviews:
-  path_filters:
-    - "!GEMINI.md"
-    - "!**/*.yml"
