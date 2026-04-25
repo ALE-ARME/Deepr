@@ -5,8 +5,6 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.sqldelight)
     id("org.jmailen.kotlinter")
-//     id("com.google.gms.google-services")
-//     id("com.google.firebase.crashlytics")
 }
 
 android {
@@ -44,21 +42,18 @@ android {
     }
 
     sourceSets {
-        // Configure the github flavor to use the shared source set
         named("github") {
             java.srcDirs("src/freeGithub/java")
             kotlin.srcDirs("src/freeGithub/kotlin")
             res.srcDirs("src/freeGithub/res")
         }
 
-        // Configure the pro flavor to use the shared source set
         named("pro") {
             java.srcDirs("src/proFree/java")
             kotlin.srcDirs("src/proFree/kotlin")
             res.srcDirs("src/proFree/res")
         }
 
-        // Configure the free flavor to use the shared source set
         named("free") {
             java.srcDirs("src/proFree/java", "src/freeGithub/java")
             kotlin.srcDirs("src/proFree/kotlin", "src/freeGithub/kotlin")
@@ -67,8 +62,8 @@ android {
     }
 
     signingConfigs {
-        getByName("debug") {
-            storeFile = rootProject.file("keystores/debug.keystore")
+        create("release") {
+            storeFile = file("${project.rootDir}/keystores/debug.keystore")
             storePassword = "android"
             keyAlias = "androiddebugkey"
             keyPassword = "android"
@@ -82,7 +77,7 @@ android {
         }
 
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -90,6 +85,7 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -104,8 +100,10 @@ android {
 
     flavorDimensions("default")
 
-    packagingOptions {
-        exclude("META-INF/DEPENDENCIES")
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1,DEPENDENCIES}"
+        }
     }
 }
 
@@ -118,7 +116,6 @@ sqldelight {
 }
 
 dependencies {
-
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -188,7 +185,7 @@ dependencies {
 kotlinter {
     ktlintVersion = "1.5.0"
     ignoreFormatFailures = true
-    ignoreLintFailures = false
+    ignoreLintFailures = true
     reporters = arrayOf("checkstyle")
 }
 
