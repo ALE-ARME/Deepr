@@ -166,7 +166,7 @@ fun ProfilesGrid(
                                     ) {
                                         Icon(
                                             imageVector = TablerIcons.ChevronUp,
-                                            contentDescription = "Move Up",
+                                            contentDescription = stringResource(R.string.move_up),
                                             modifier = Modifier.size(20.dp),
                                         )
                                     }
@@ -180,7 +180,7 @@ fun ProfilesGrid(
                                     ) {
                                         Icon(
                                             imageVector = TablerIcons.ChevronDown,
-                                            contentDescription = "Move Down",
+                                            contentDescription = stringResource(R.string.move_down),
                                             modifier = Modifier.size(20.dp),
                                         )
                                     }
@@ -228,44 +228,49 @@ fun RenameDeleteProfileDialog(
                     text = stringResource(R.string.delete_profile),
                     style = MaterialTheme.typography.headlineSmall,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
             },
-            text = { 
+            text = {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
-                    val fullMessage = stringResource(R.string.profile_delete_confirmation_with_name, profile.name)
-                    val parts = fullMessage.split(profile.name)
-                    val annotatedString = buildAnnotatedString {
-                        if (parts.size >= 2) {
-                            append(parts[0])
-                            withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
-                                append(profile.name)
+                    val template = stringResource(R.string.profile_delete_confirmation_template)
+                    val placeholder = "%1$s"
+                    val placeholderIndex = template.indexOf(placeholder)
+
+                    val annotatedString =
+                        buildAnnotatedString {
+                            if (placeholderIndex >= 0) {
+                                append(template.substring(0, placeholderIndex))
+                                withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                                    append(profile.name)
+                                }
+                                append(template.substring(placeholderIndex + placeholder.length))
+                            } else {
+                                append(template)
                             }
-                            append(parts[1])
-                        } else {
-                            append(fullMessage)
                         }
-                    }
                     Text(
                         text = annotatedString,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.deleteProfile(profile.id)
-                        showDeleteConfirmation = false
-                        onDismiss()
-                        Toast.makeText(context, context.getString(R.string.profile_deleted_successfully), Toast.LENGTH_SHORT).show()
+                        coroutineScope.launch {
+                            viewModel.deleteProfile(profile.id)
+                            showDeleteConfirmation = false
+                            onDismiss()
+                            Toast.makeText(context, context.getString(R.string.profile_deleted_successfully), Toast.LENGTH_SHORT).show()
+                        }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                 ) {
                     Text(stringResource(R.string.delete))
                 }
@@ -274,73 +279,75 @@ fun RenameDeleteProfileDialog(
                 TextButton(onClick = { showDeleteConfirmation = false }) {
                     Text(stringResource(android.R.string.cancel))
                 }
-            }
+            },
         )
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.edit_profile)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = newName,
-                    onValueChange = {
-                        newName = it
-                        error = null
-                    },
-                    label = { Text(stringResource(R.string.profile_name)) },
-                    singleLine = true,
-                    isError = error != null,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                )
-                error?.let {
-                    Text(text = it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                }
-            }
-        },
-        confirmButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (allProfiles.size > 1) {
-                    TextButton(
-                        onClick = {
-                            showDeleteConfirmation = true
+    if (!showDeleteConfirmation) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text(stringResource(R.string.edit_profile)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = newName,
+                        onValueChange = {
+                            newName = it
+                            error = null
                         },
-                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                    ) {
-                        Text(stringResource(R.string.delete))
+                        label = { Text(stringResource(R.string.profile_name)) },
+                        singleLine = true,
+                        isError = error != null,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                    )
+                    error?.let {
+                        Text(text = it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     }
                 }
-                
-                Button(
-                    onClick = {
-                        val trimmed = newName.trim()
-                        if (trimmed.isBlank()) {
-                            error = context.getString(R.string.profile_name_cannot_be_blank)
-                            return@Button
+            },
+            confirmButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (allProfiles.size > 1) {
+                        TextButton(
+                            onClick = {
+                                showDeleteConfirmation = true
+                            },
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        ) {
+                            Text(stringResource(R.string.delete))
                         }
-                        if (allProfiles.any { it.name.equals(trimmed, ignoreCase = true) && it.id != profile.id }) {
-                            error = context.getString(R.string.profile_name_exists)
-                            return@Button
-                        }
-                        
-                        coroutineScope.launch {
-                            viewModel.updateProfile(profile.id, trimmed, profile.themeMode, profile.colorTheme)
-                            onDismiss()
-                            Toast.makeText(context, context.getString(R.string.profile_updated_successfully), Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    enabled = newName.isNotBlank() && newName != profile.name
-                ) {
-                    Text(stringResource(R.string.save))
+                    }
+
+                    Button(
+                        onClick = {
+                            val trimmed = newName.trim()
+                            if (trimmed.isBlank()) {
+                                error = context.getString(R.string.profile_name_cannot_be_blank)
+                                return@Button
+                            }
+                            if (allProfiles.any { it.name.equals(trimmed, ignoreCase = true) && it.id != profile.id }) {
+                                error = context.getString(R.string.profile_name_exists)
+                                return@Button
+                            }
+
+                            coroutineScope.launch {
+                                viewModel.updateProfile(profile.id, trimmed, profile.themeMode, profile.colorTheme)
+                                onDismiss()
+                                Toast.makeText(context, context.getString(R.string.profile_updated_successfully), Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        enabled = newName.isNotBlank() && newName != profile.name,
+                    ) {
+                        Text(stringResource(R.string.save))
+                    }
                 }
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(android.R.string.cancel))
-            }
-        }
-    )
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+        )
+    }
 }
