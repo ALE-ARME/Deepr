@@ -337,7 +337,7 @@ fun RenameDeleteProfileDialog(
                                 Toast.makeText(context, context.getString(R.string.profile_updated_successfully), Toast.LENGTH_SHORT).show()
                             }
                         },
-                        enabled = newName.isNotBlank() && newName != profile.name,
+                        enabled = newName.isNotBlank() && newName.trim() != profile.name,
                     ) {
                         Text(stringResource(R.string.save))
                     }
