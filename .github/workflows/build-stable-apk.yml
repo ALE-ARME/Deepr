@@ -26,37 +26,92 @@ jobs:
 
       - name: Force Debug Signing on Release
         run: |
-          # Validate expected structure exists
-          if ! grep -q 'signingConfigs {' app/build.gradle.kts; then
-            echo "ERROR: signingConfigs block not found"
-            exit 1
-          fi
-          if ! grep -q 'release {' app/build.gradle.kts; then
-            echo "ERROR: release build type not found"
-            exit 1
-          fi
+          python3 - <<EOF
+          import os
 
-          # Extract signingConfigs block using awk for proper brace matching
-          awk '/signingConfigs \{/{p=1; depth=0} p{print; depth+=gsub(/\{/,"{"); depth-=gsub(/\}/,"}"); if(depth==0 && p) exit}' app/build.gradle.kts > signing_block.txt
-          
-          if [ ! -s signing_block.txt ]; then
-            echo "ERROR: Failed to extract signingConfigs block"
-            exit 1
-          fi
+          path = "app/build.gradle.kts"
+          with open(path, "r") as f:
+              lines = f.readlines()
 
-          # Remove original signingConfigs block using awk
-          awk 'BEGIN{p=1} /signingConfigs \{/{skip=1; depth=0} skip{depth+=gsub(/\{/,"{"); depth-=gsub(/\}/,"}"); if(depth==0) skip=0; next} p' app/build.gradle.kts > temp.gradle.kts && mv temp.gradle.kts app/build.gradle.kts
+          # Find signingConfigs block
+          start_idx = -1
+          end_idx = -1
+          depth = 0
+          for i, line in enumerate(lines):
+              if "signingConfigs {" in line:
+                  start_idx = i
+                  depth = line.count("{") - line.count("}")
+                  if depth == 0:
+                      end_idx = i
+                      break
+                  continue
+              if start_idx != -1:
+                  depth += line.count("{") - line.count("}")
+                  if depth == 0:
+                      end_idx = i
+                      break
+
+          if start_idx == -1 or end_idx == -1:
+              print("ERROR: signingConfigs block not found")
+              exit(1)
+
+          signing_block = lines[start_idx : end_idx + 1]
           
-          # Insert signingConfigs block before buildTypes
-          sed -i '/buildTypes {/i \\' app/build.gradle.kts
-          sed -i '/buildTypes {/e cat signing_block.txt' app/build.gradle.kts
+          # Remove signingConfigs block
+          new_lines = lines[:start_idx] + lines[end_idx + 1:]
+
+          # Find buildTypes block
+          bt_idx = -1
+          for i, line in enumerate(new_lines):
+              if "buildTypes {" in line:
+                  bt_idx = i
+                  break
           
-          # Link release build to debug signing if not already present
-          if grep -A10 'release {' app/build.gradle.kts | grep -q 'signingConfig'; then
-            sed -i '/release {/,/}/ s/signingConfig = .*/signingConfig = signingConfigs.getByName("debug")/' app/build.gradle.kts
-          else
-            sed -i '/release {/a \            signingConfig = signingConfigs.getByName("debug")' app/build.gradle.kts
-          fi
+          if bt_idx == -1:
+              print("ERROR: buildTypes block not found")
+              exit(1)
+
+          # Inject signingConfigs before buildTypes
+          final_lines = new_lines[:bt_idx] + ["\n"] + signing_block + new_lines[bt_idx:]
+
+          # Link release to debug signing
+          # 1. Find release block within buildTypes
+          rel_start = -1
+          rel_end = -1
+          in_bt = False
+          depth = 0
+          for i, line in enumerate(final_lines):
+              if "buildTypes {" in line:
+                  in_bt = True
+                  depth = 0
+              if in_bt:
+                  depth += line.count("{") - line.count("}")
+                  if "release {" in line:
+                      rel_start = i
+                  if depth == 0 and i > final_lines.index([l for l in final_lines if "buildTypes {" in l][0]):
+                      in_bt = False
+                      break
+          
+          # Simplified search for release block
+          for i, line in enumerate(final_lines):
+              if "release {" in line:
+                  rel_start = i
+                  break
+          
+          if rel_start != -1:
+              # Check if signingConfig already exists in the next few lines
+              found_sc = False
+              for j in range(rel_start + 1, rel_start + 10):
+                  if j < len(final_lines) and "signingConfig =" in final_lines[j]:
+                      final_lines[j] = '            signingConfig = signingConfigs.getByName("debug")\n'
+                      found_sc = True
+                      break
+              if not found_sc:
+                  final_lines.insert(rel_start + 1, '            signingConfig = signingConfigs.getByName("debug")\n')
+
+          with open(path, "w") as f:
+              f.writelines(final_lines)
+          EOF
 
           # Verify the change was applied
           if ! grep -q 'signingConfig = signingConfigs.getByName("debug")' app/build.gradle.kts; then
