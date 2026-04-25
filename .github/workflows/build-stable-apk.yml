@@ -48,7 +48,7 @@ jobs:
           sed -i '/signingConfigs {/,/    }/d' app/build.gradle.kts
           
           # Insert signingConfigs block before buildTypes
-          sed -i '/buildTypes {/i \\' app/build.gradle.kts
+          sed -i '/buildTypes {/i \ ' app/build.gradle.kts
           sed -i '/buildTypes {/e cat signing_block.txt' app/build.gradle.kts
           
           # Link release build to debug signing
