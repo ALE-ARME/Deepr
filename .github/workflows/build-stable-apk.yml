@@ -22,7 +22,43 @@ jobs:
           cache: gradle
 
       - name: Grant execute permission for gradlew
-        run: chmod +x ./gradlew
+        run: chmod +x gradlew
+
+      - name: Force Debug Signing on Release
+        run: |
+          # Validate expected structure exists
+          if ! grep -q 'signingConfigs {' app/build.gradle.kts; then
+            echo "ERROR: signingConfigs block not found"
+            exit 1
+          fi
+          if ! grep -q 'release {' app/build.gradle.kts; then
+            echo "ERROR: release build type not found"
+            exit 1
+          fi
+
+          # Extract signingConfigs block
+          sed -n '/signingConfigs {/,/    }/p' app/build.gradle.kts > signing_block.txt
+          
+          if [ ! -s signing_block.txt ]; then
+            echo "ERROR: Failed to extract signingConfigs block"
+            exit 1
+          fi
+
+          # Remove original signingConfigs block
+          sed -i '/signingConfigs {/,/    }/d' app/build.gradle.kts
+          
+          # Insert signingConfigs block before buildTypes
+          sed -i '/buildTypes {/i \\' app/build.gradle.kts
+          sed -i '/buildTypes {/e cat signing_block.txt' app/build.gradle.kts
+          
+          # Link release build to debug signing
+          sed -i '/release {/a \            signingConfig = signingConfigs.getByName("debug")' app/build.gradle.kts
+
+          # Verify the change was applied
+          if ! grep -q 'signingConfig = signingConfigs.getByName("debug")' app/build.gradle.kts; then
+            echo "ERROR: Failed to inject debug signing config"
+            exit 1
+          fi
 
       - name: Build Github Release APK
         run: ./gradlew assembleGithubRelease
