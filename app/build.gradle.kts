@@ -18,8 +18,8 @@ android {
         applicationId = "com.yogeshpaliyal.deepr"
         minSdk = 24
         targetSdk = 36
-        versionCode = 28
-        versionName = "1.0.27"
+        versionCode = 29
+        versionName = "1.0.28"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments += mapOf(
@@ -66,6 +66,14 @@ android {
         }
     }
 
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("../keystores/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
 
     buildTypes {
         debug {
@@ -74,6 +82,7 @@ android {
         }
 
         release {
+            signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -94,15 +103,6 @@ android {
     }
 
     flavorDimensions("default")
-
-    signingConfigs {
-        getByName("debug") {
-            storeFile = file("../keystores/debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
-        }
-    }
 
     packagingOptions {
         exclude("META-INF/DEPENDENCIES")
