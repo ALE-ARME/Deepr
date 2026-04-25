@@ -22,7 +22,7 @@ jobs:
           cache: gradle
 
       - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+        run: chmod +x ./gradlew
 
       - name: Force Debug Signing on Release
         run: |
@@ -33,35 +33,35 @@ jobs:
           fi
           if ! grep -q 'release {' app/build.gradle.kts; then
             echo "ERROR: release build type not found"
-            - name: Inject debug signing into release build
-              run: |
-                # Extract signingConfigs block using awk for proper brace matching
-                awk '/signingConfigs \{/{p=1; depth=0} p{print; depth+=gsub(/\{/,"{"); depth-=gsub(/\}/,"}"); if(depth==0 && p) exit}' app/build.gradle.kts > signing_block.txt
+            exit 1
+          fi
 
-                if [ ! -s signing_block.txt ]; then
-                  echo "ERROR: Failed to extract signingConfigs block"
-                  exit 1
-                fi
+          # Extract signingConfigs block using awk for proper brace matching
+          awk '/signingConfigs \{/{p=1; depth=0} p{print; depth+=gsub(/\{/,"{"); depth-=gsub(/\}/,"}"); if(depth==0 && p) exit}' app/build.gradle.kts > signing_block.txt
+          
+          if [ ! -s signing_block.txt ]; then
+            echo "ERROR: Failed to extract signingConfigs block"
+            exit 1
+          fi
 
-                # Remove original signingConfigs block using awk
-                awk 'BEGIN{p=1} /signingConfigs \{/{skip=1; depth=0} skip{depth+=gsub(/\{/,"{"); depth-=gsub(/\}/,"}"); if(depth==0) skip=0; next} p' app/build.gradle.kts > temp.gradle.kts && mv temp.gradle.kts app/build.gradle.kts
+          # Remove original signingConfigs block using awk
+          awk 'BEGIN{p=1} /signingConfigs \{/{skip=1; depth=0} skip{depth+=gsub(/\{/,"{"); depth-=gsub(/\}/,"}"); if(depth==0) skip=0; next} p' app/build.gradle.kts > temp.gradle.kts && mv temp.gradle.kts app/build.gradle.kts
+          
+          # Insert signingConfigs block before buildTypes
+          sed -i '/buildTypes {/i \\' app/build.gradle.kts
+          sed -i '/buildTypes {/e cat signing_block.txt' app/build.gradle.kts
+          
+          # Link release build to debug signing if not already present
+          if grep -A10 'release {' app/build.gradle.kts | grep -q 'signingConfig'; then
+            sed -i '/release {/,/}/ s/signingConfig = .*/signingConfig = signingConfigs.getByName("debug")/' app/build.gradle.kts
+          else
+            sed -i '/release {/a \            signingConfig = signingConfigs.getByName("debug")' app/build.gradle.kts
+          fi
 
-                # Insert signingConfigs block before buildTypes
-                sed -i '/buildTypes {/i \\' app/build.gradle.kts
-                sed -i '/buildTypes {/e cat signing_block.txt' app/build.gradle.kts
-
-                # Link release build to debug signing if not already present
-                if grep -A10 'release {' app/build.gradle.kts | grep -q 'signingConfig'; then
-                  sed -i '/release {/,/}/ s/signingConfig = .*/signingConfig = signingConfigs.getByName("debug")/' app/build.gradle.kts
-                else
-                  sed -i '/release {/a \            signingConfig = signingConfigs.getByName("debug")' app/build.gradle.kts
-                fi
-
-                # Verify the change was applied
-                if ! grep -q 'signingConfig = signingConfigs.getByName("debug")' app/build.gradle.kts; then
-                  echo "ERROR: Failed to inject debug signing config"
-                  exit 1
-                fi
+          # Verify the change was applied
+          if ! grep -q 'signingConfig = signingConfigs.getByName("debug")' app/build.gradle.kts; then
+            echo "ERROR: Failed to inject debug signing config"
+            exit 1
           fi
 
       - name: Build Github Release APK
