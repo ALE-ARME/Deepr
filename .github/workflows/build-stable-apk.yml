@@ -27,90 +27,24 @@ jobs:
       - name: Force Debug Signing on Release
         run: |
           python3 - <<EOF
-          import os
+          import sys
 
           path = "app/build.gradle.kts"
           with open(path, "r") as f:
-              lines = f.readlines()
+              content = f.read()
 
-          # Find signingConfigs block
-          start_idx = -1
-          end_idx = -1
-          depth = 0
-          for i, line in enumerate(lines):
-              if "signingConfigs {" in line:
-                  start_idx = i
-                  depth = line.count("{") - line.count("}")
-                  if depth == 0:
-                      end_idx = i
-                      break
-                  continue
-              if start_idx != -1:
-                  depth += line.count("{") - line.count("}")
-                  if depth == 0:
-                      end_idx = i
-                      break
-
-          if start_idx == -1 or end_idx == -1:
-              print("ERROR: signingConfigs block not found")
-              exit(1)
-
-          signing_block = lines[start_idx : end_idx + 1]
-          
-          # Remove signingConfigs block
-          new_lines = lines[:start_idx] + lines[end_idx + 1:]
-
-          # Find buildTypes block
-          bt_idx = -1
-          for i, line in enumerate(new_lines):
-              if "buildTypes {" in line:
-                  bt_idx = i
-                  break
-          
-          if bt_idx == -1:
-              print("ERROR: buildTypes block not found")
-              exit(1)
-
-          # Inject signingConfigs before buildTypes
-          final_lines = new_lines[:bt_idx] + ["\n"] + signing_block + new_lines[bt_idx:]
-
-          # Link release to debug signing
-          # 1. Find release block within buildTypes
-          rel_start = -1
-          rel_end = -1
-          in_bt = False
-          depth = 0
-          for i, line in enumerate(final_lines):
-              if "buildTypes {" in line:
-                  in_bt = True
-                  depth = 0
-              if in_bt:
-                  depth += line.count("{") - line.count("}")
-                  if "release {" in line:
-                      rel_start = i
-                  if depth == 0 and i > final_lines.index([l for l in final_lines if "buildTypes {" in l][0]):
-                      in_bt = False
-                      break
-          
-          # Simplified search for release block
-          for i, line in enumerate(final_lines):
-              if "release {" in line:
-                  rel_start = i
-                  break
-          
-          if rel_start != -1:
-              # Check if signingConfig already exists in the next few lines
-              found_sc = False
-              for j in range(rel_start + 1, rel_start + 10):
-                  if j < len(final_lines) and "signingConfig =" in final_lines[j]:
-                      final_lines[j] = '            signingConfig = signingConfigs.getByName("debug")\n'
-                      found_sc = True
-                      break
-              if not found_sc:
-                  final_lines.insert(rel_start + 1, '            signingConfig = signingConfigs.getByName("debug")\n')
+          if "release {" in content:
+              if 'signingConfig = signingConfigs.getByName("debug")' not in content:
+                  print("Injecting signingConfig into release block...")
+                  content = content.replace("release {", 'release {\n            signingConfig = signingConfigs.getByName("debug")')
+              else:
+                  print("signingConfig already present in release block.")
+          else:
+              print("ERROR: release block not found")
+              sys.exit(1)
 
           with open(path, "w") as f:
-              f.writelines(final_lines)
+              f.write(content)
           EOF
 
           # Verify the change was applied
