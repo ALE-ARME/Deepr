@@ -335,7 +335,12 @@ fun RenameDeleteProfileDialog(
                                 try {
                                     viewModel.updateProfile(profile.id, trimmed, profile.themeMode, profile.colorTheme)
                                     onDismiss()
-                                    Toast.makeText(context, context.getString(R.string.profile_updated_successfully), Toast.LENGTH_SHORT).show()
+                                    Toast
+                                        .makeText(
+                                            context,
+                                            context.getString(R.string.profile_updated_successfully),
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
                                 } catch (e: Exception) {
                                     error = context.getString(R.string.profile_update_failed)
                                 }
@@ -352,10 +357,6 @@ fun RenameDeleteProfileDialog(
                     Text(stringResource(android.R.string.cancel))
                 }
             },
-        )
-    }
-}
-           },
         )
     }
 }
