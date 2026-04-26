@@ -45,14 +45,13 @@ jobs:
           fi
 
           # Remove original signingConfigs block
-          sed -i '/signingConfigs {/,/    }/d' app/build.gradle.kts
+          awk '/signingConfigs \{/{skip=1} skip{if(/    \}/) skip=0; next} 1' app/build.gradle.kts > tmp.kts && mv tmp.kts app/build.gradle.kts
           
           # Insert signingConfigs block before buildTypes
-          sed -i '/buildTypes {/i \ ' app/build.gradle.kts
-          sed -i '/buildTypes {/e cat signing_block.txt' app/build.gradle.kts
+          awk '/buildTypes \{/ { system("cat signing_block.txt") } 1' app/build.gradle.kts > tmp.kts && mv tmp.kts app/build.gradle.kts
           
           # Link release build to debug signing
-          sed -i '/release {/a \            signingConfig = signingConfigs.getByName("debug")' app/build.gradle.kts
+          awk '/release \{/ { print; print "            signingConfig = signingConfigs.getByName(\"debug\")"; next } 1' app/build.gradle.kts > tmp.kts && mv tmp.kts app/build.gradle.kts
 
           # Verify the change was applied
           if ! grep -q 'signingConfig = signingConfigs.getByName("debug")' app/build.gradle.kts; then
