@@ -62,14 +62,18 @@ jobs:
       - name: Build Github Release APK
         run: ./gradlew assembleGithubRelease
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v2.2.1
+      - name: 🚀 Upload APK to Artifacts 📱
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: "latest-stable"
-          name: "Latest Stable Build"
-          body: "Automatic build of the stable APK from ${{ github.ref_name }} branch."
-          draft: false
+          name: app-github-release
+          path: app/build/outputs/apk/github/release/*.apk
+          retention-days: 3
+
+      - name: Create Release
+        uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ github.token }}"
+          automatic_release_tag: "latest-stable"
           prerelease: true
+          title: "Latest Stable Build (${{ github.ref_name }})"
           files: app/build/outputs/apk/github/release/*.apk
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
