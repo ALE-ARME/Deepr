@@ -238,7 +238,7 @@ fun RenameDeleteProfileDialog(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     val template = stringResource(R.string.profile_delete_confirmation_template)
-                    val placeholder = "%1$s"
+                    val placeholder = "%1" + "$" + "s"
                     val placeholderIndex = template.indexOf(placeholder)
 
                     val annotatedString =
