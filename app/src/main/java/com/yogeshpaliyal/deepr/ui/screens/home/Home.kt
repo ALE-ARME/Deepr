@@ -415,7 +415,14 @@ fun HomeScreen(
                             ) {
                                 Icon(
                                     imageVector = if (isReordering) TablerIcons.Check else TablerIcons.ArrowsSort,
-                                    contentDescription = if (isReordering) "Finish Reordering" else stringResource(R.string.reorder),
+                                    contentDescription =
+                                        if (isReordering) {
+                                            stringResource(
+                                                R.string.finish_reordering,
+                                            )
+                                        } else {
+                                            stringResource(R.string.reorder)
+                                        },
                                     tint = if (isReordering) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                                 )
                             }
