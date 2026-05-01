@@ -58,7 +58,6 @@
     <string name="notes">Note</string>
     <string name="note">Nota</string>
 
-    <string name="links">link</string>
     <string name="note_copied">Nota copiata</string>
     <string name="cannot_open_link">Impossibile aprire il link</string>
     <string name="view_note">Vedi Nota</string>
@@ -93,7 +92,6 @@
     <string name="delete_tag_confirmation">Sei sicuro di voler eliminare questo tag?</string>
     <string name="delete_tag_confirmation_with_name">Sei sicuro di voler eliminare il tag %s?</string>
     <string name="tag_name_exists">Un tag con questo nome esiste già</string>
-    <string name="tag_used_by_links">Questa etichetta è usata da %1$d %2$s</string>
     <string name="failed_to_edit_tag">Impossibile modificare il tag</string>
     <string name="tag_edited_successfully">Tag modificato con successo</string>
     <string name="failed_to_delete_tag">Impossibile eliminare il tag: %s</string>
@@ -269,8 +267,6 @@
     <string name="failed_to_update_profile">Impossibile aggiornare il profilo</string>
     <string name="cannot_delete_only_profile">Impossibile eliminare l\'unico profilo esistente</string>
     <string name="profile_delete_confirmation">Sei sicuro di voler eliminare questo profilo? Tutti i link e le etichette in questo profilo verranno eliminati.</string>
-    <string name="profile_delete_confirmation_with_name">Sei sicuro di voler eliminare il profilo %s? Tutti i link e le etichette in questo profilo verranno eliminati</string>
-    <string name="delete_profile_confirmation">Sei sicuro di voler eliminare questo profilo? Tutti i link e le etichette in questo profilo verranno eliminati.</string>
     <string name="switch_profile">Cambia Profilo</string>
     <string name="manage_profiles">Gestisci Profili</string>
     <string name="no_profiles_yet">Nessun profilo ancora</string>
@@ -335,7 +331,6 @@
     <!-- Missing strings from extra scan -->
     <string name="enter_profile_name">Inserisci nome profilo</string>
     <string name="all_profiles">Tutti i Profili</string>
-    <string name="profile_name_cannot_be_empty">Il nome del profilo non può essere vuoto</string>
     <string name="failed_to_fetch_data">Impossibile recuperare i dati da %1$s, codice stato: %2$d</string>
     <string name="error_fetching_data">Errore nel recupero dei dati da %1$s: %2$s</string>
     <string name="current_profile">Profilo Corrente</string>
@@ -354,4 +349,12 @@
     <string name="theme_light">Chiaro</string>
     <string name="theme_dark">Scuro</string>
     <string name="close">Chiudi</string>
+
+    <!-- Missing Features -->
+    <string name="finish_reordering">Termina Riordinamento</string>
+    <string name="move_up">Sposta Su</string>
+    <string name="move_down">Sposta Giù</string>
+    <string name="profile_delete_confirmation_template">Sei sicuro di voler eliminare il profilo %1$s e tutti i link associati? Questa azione non può essere annullata.</string>
+    <string name="profile_delete_failed">Eliminazione profilo fallita</string>
+    <string name="profile_update_failed">Aggiornamento profilo fallito</string>
 </resources>
