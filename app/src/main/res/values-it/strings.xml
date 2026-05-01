@@ -253,7 +253,7 @@
 
     <!-- Profiles -->
     <string name="profiles">Profili</string>
-    <string name="reorder">Reordina</string>
+    <string name="reorder">Riordina</string>
     <string name="profile">Profilo</string>
     <string name="select_profile">Seleziona profilo</string>
     <string name="create_profile">Crea Profilo</string>
