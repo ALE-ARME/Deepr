@@ -34,35 +34,47 @@ fun QrCodeDialog(
         onDismissRequest = onDismiss,
         title = { Text("QR Code") },
         text = {
-            Column {
-                QrCodeView(
-                    data = deepr.link,
-                    modifier = Modifier.size(300.dp),
-                    colors =
-                        QrCodeColors(
-                            background = Color.White,
-                            foreground = Color.Black,
-                        ),
-                    dotShape = DotShape.Circle,
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .background(
+                                color = Color.White,
+                                shape = RoundedCornerShape(12.dp),
+                            ).padding(16.dp),
                 ) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .aspectRatio(1f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color.Transparent),
+                    QrCodeView(
+                        data = deepr.link,
+                        modifier = Modifier.size(268.dp),
+                        colors =
+                            QrCodeColors(
+                                background = Color.White,
+                                foreground = Color.Black,
+                            ),
+                        dotShape = DotShape.Circle,
                     ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.app_logo),
-                            contentDescription = "App Logo",
+                        Box(
+                            contentAlignment = Alignment.Center,
                             modifier =
                                 Modifier
-                                    .fillMaxSize(0.5f)
-                                    .clip(CircleShape)
-                                    .background(Color.White),
-                        )
+                                    .fillMaxSize()
+                                    .aspectRatio(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color.Transparent),
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.app_logo),
+                                contentDescription = "App Logo",
+                                modifier =
+                                    Modifier
+                                        .fillMaxSize(0.5f)
+                                        .clip(CircleShape)
+                                        .background(Color.White),
+                            )
+                        }
                     }
                 }
             }
