@@ -2,7 +2,7 @@ name: Build Stable APK
 on:
   push:
     branches:
-      - 6-feature-unified-search-links-tags
+      - 7-refactor-add-link-and-cleanup-clipboard
   workflow_dispatch:
 
 jobs:
