@@ -57,7 +57,7 @@
     <string name="last_opened">Ultima Apertura: %s</string>
     <string name="notes">Note</string>
     <string name="note">Nota</string>
-    <string name="link">link</string>
+
     <string name="links">link</string>
     <string name="note_copied">Nota copiata</string>
     <string name="cannot_open_link">Impossibile aprire il link</string>
