@@ -1,73 +1,42 @@
 package com.yogeshpaliyal.deepr.ui.screens.home
 
-import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.ScrollableState
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
-import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
-import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
-import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material.icons.rounded.StarBorder
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AppBarWithSearch
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ContainedLoadingIndicator
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemColors
-import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBarDefaults
@@ -78,14 +47,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberSearchBarState
 import androidx.compose.material3.rememberTooltipState
-import androidx.compose.material3.ripple
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -101,87 +65,44 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
 import com.yogeshpaliyal.deepr.DeeprQueries
 import com.yogeshpaliyal.deepr.GetLinksAndTags
 import com.yogeshpaliyal.deepr.LocalSharedText
 import com.yogeshpaliyal.deepr.R
 import com.yogeshpaliyal.deepr.SharedLink
-import com.yogeshpaliyal.deepr.Tags
 import com.yogeshpaliyal.deepr.analytics.AnalyticsEvents
 import com.yogeshpaliyal.deepr.analytics.AnalyticsManager
-import com.yogeshpaliyal.deepr.analytics.AnalyticsParams
 import com.yogeshpaliyal.deepr.ui.AddLinkScreen
 import com.yogeshpaliyal.deepr.ui.LocalNavigator
 import com.yogeshpaliyal.deepr.ui.TopLevelRoute
 import com.yogeshpaliyal.deepr.ui.components.ClearInputIconButton
-import com.yogeshpaliyal.deepr.ui.components.CreateShortcutDialog
-import com.yogeshpaliyal.deepr.ui.components.DeleteConfirmationDialog
-import com.yogeshpaliyal.deepr.ui.components.NoteViewDialog
-import com.yogeshpaliyal.deepr.ui.components.QrCodeDialog
 import com.yogeshpaliyal.deepr.ui.components.ServerStatusBar
 import com.yogeshpaliyal.deepr.ui.screens.LocalNetworkServer
-import com.yogeshpaliyal.deepr.ui.screens.home.MenuItem.Click
-import com.yogeshpaliyal.deepr.ui.screens.home.MenuItem.Copy
-import com.yogeshpaliyal.deepr.ui.screens.home.MenuItem.Delete
-import com.yogeshpaliyal.deepr.ui.screens.home.MenuItem.Edit
-import com.yogeshpaliyal.deepr.ui.screens.home.MenuItem.FavouriteClick
-import com.yogeshpaliyal.deepr.ui.screens.home.MenuItem.MoreOptionsBottomSheet
-import com.yogeshpaliyal.deepr.ui.screens.home.MenuItem.ResetCounter
-import com.yogeshpaliyal.deepr.ui.screens.home.MenuItem.Share
-import com.yogeshpaliyal.deepr.ui.screens.home.MenuItem.Shortcut
-import com.yogeshpaliyal.deepr.ui.screens.home.MenuItem.ShowQrCode
-import com.yogeshpaliyal.deepr.ui.screens.home.MenuItem.ViewNote
 import com.yogeshpaliyal.deepr.util.isValidDeeplink
 import com.yogeshpaliyal.deepr.util.normalizeLink
-import com.yogeshpaliyal.deepr.util.openDeeplink
-import com.yogeshpaliyal.deepr.util.openDeeplinkExternal
 import com.yogeshpaliyal.deepr.viewmodel.AccountViewModel
 import compose.icons.TablerIcons
 import compose.icons.tablericons.ArrowLeft
 import compose.icons.tablericons.ArrowsSort
-import compose.icons.tablericons.ChevronDown
-import compose.icons.tablericons.ChevronUp
 import compose.icons.tablericons.Check
-import compose.icons.tablericons.Edit
-import compose.icons.tablericons.ExternalLink
-import compose.icons.tablericons.Link
-import compose.icons.tablericons.Note
 import compose.icons.tablericons.Plus
-import compose.icons.tablericons.Qrcode
-import compose.icons.tablericons.Refresh
 import compose.icons.tablericons.Search
-import compose.icons.tablericons.Share
-import compose.icons.tablericons.Tag
-import compose.icons.tablericons.Trash
 import compose.icons.tablericons.User
-import compose.icons.tablericons.ArrowsSort
-import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeEffect
-import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import dev.chrisbanes.haze.materials.HazeMaterials
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinActivityViewModel
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 
 data object Home
 
@@ -277,7 +198,14 @@ fun HomeScreen(
     var profileToManage by remember { mutableStateOf<com.yogeshpaliyal.deepr.Profile?>(null) }
     var isReordering by remember { mutableStateOf(false) }
 
-    BackHandler(enabled = isReordering || profileToManage != null || !showProfilesGrid || selectedTag.isNotEmpty() || searchBarState.currentValue == SearchBarValue.Expanded) {
+    BackHandler(
+        enabled =
+            isReordering ||
+                profileToManage != null ||
+                !showProfilesGrid ||
+                selectedTag.isNotEmpty() ||
+                searchBarState.currentValue == SearchBarValue.Expanded,
+    ) {
         hapticFeedback.performHapticFeedback(HapticFeedbackType.VirtualKey)
         if (isReordering) {
             isReordering = false
@@ -493,7 +421,7 @@ fun HomeScreen(
                             }
                         }
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
             } else {
                 Column(
@@ -578,7 +506,7 @@ fun HomeScreen(
                                         onLongPress = {
                                             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                                             var linkToPass = clipboardLink?.url ?: ""
-                                            
+
                                             // Fallback: try to read directly from clipboard manager if state is empty
                                             if (linkToPass.isBlank()) {
                                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -593,7 +521,7 @@ fun HomeScreen(
                                                     }
                                                 }
                                             }
-                                            
+
                                             localNavigator.add(AddLinkScreen(createDeeprObject(link = linkToPass)))
                                         },
                                     )
@@ -781,4 +709,3 @@ fun HomeScreen(
         )
     }
 }
-
