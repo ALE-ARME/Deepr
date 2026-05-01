@@ -159,27 +159,9 @@
     <string name="remove_thumbnail">Quitar miniatura</string>
 
     <!-- New Search Labels -->
-    <string name="search_hint">Buscar enlaces, nombres o etiquetas...</string>
-    <string name="search_all_tags">Todas las etiquetas</string>
-    <string name="search_selected_tags">Etiquetas seleccionadas (%d)</string>
 
     <!-- Web Server & Import -->
-    <string name="local_web_server">Servidor Web Local</string>
-    <string name="local_web_server_description">Gestiona tus enlaces desde un navegador web</string>
-    <string name="web_server_status">Estado del servidor: %s</string>
-    <string name="web_server_running">En ejecución</string>
-    <string name="web_server_stopped">Detenido</string>
-    <string name="web_server_address">Dirección del servidor: %s</string>
-    <string name="web_server_instructions">Abre esta dirección en el navegador de cualquier dispositivo en la misma red Wi-Fi.</string>
-    <string name="copy_address">Copiar dirección</string>
-    <string name="address_copied">Dirección copiada</string>
-    <string name="start_server">Iniciar Servidor</string>
-    <string name="stop_server">Detener Servidor</string>
-    <string name="import_from_other_device">Importar desde otro dispositivo</string>
-    <string name="import_from_other_device_description">Transferir enlaces vía Wi-Fi</string>
     <string name="scan_qr_code">Escanear código QR</string>
-    <string name="scan_qr_instructions">Escanea el código QR mostrado en el otro dispositivo para iniciar la transferencia.</string>
-    <string name="transfer_links">Transferir enlaces</string>
     <string name="transfer_link_server_instructions">1. Activa el interruptor de arriba para iniciar el servidor\n2. Asegúrate de que ambos dispositivos estén en la misma red Wi-Fi\n3. Escanea el código QR desde la opción de importar enlaces en otro dispositivo</string>
     <string name="scan_qr_to_get_data">Escanea para obtener los enlaces de otro dispositivo</string>
 

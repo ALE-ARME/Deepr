@@ -159,27 +159,9 @@
     <string name="remove_thumbnail">Supprimer l\'aperçu</string>
 
     <!-- New Search Labels -->
-    <string name="search_hint">Rechercher des liens, noms ou étiquettes...</string>
-    <string name="search_all_tags">Toutes les étiquettes</string>
-    <string name="search_selected_tags">Étiquettes sélectionnées (%d)</string>
 
     <!-- Web Server & Import -->
-    <string name="local_web_server">Serveur Web Local</string>
-    <string name="local_web_server_description">Gérer vos liens depuis un navigateur web</string>
-    <string name="web_server_status">Statut du Serveur : %s</string>
-    <string name="web_server_running">En cours d\'exécution</string>
-    <string name="web_server_stopped">Arrêté</string>
-    <string name="web_server_address">Adresse du Serveur : %s</string>
-    <string name="web_server_instructions">Ouvrez cette adresse dans le navigateur de n\'importe quel appareil sur le même réseau Wi-Fi.</string>
-    <string name="copy_address">Copier l\'adresse</string>
-    <string name="address_copied">Adresse copiée</string>
-    <string name="start_server">Démarrer le Serveur</string>
-    <string name="stop_server">Arrêter le Serveur</string>
-    <string name="import_from_other_device">Importer depuis un autre appareil</string>
-    <string name="import_from_other_device_description">Transférer des liens via Wi-Fi</string>
     <string name="scan_qr_code">Scanner le Code QR</string>
-    <string name="scan_qr_instructions">Scannez le code QR affiché sur l\'autre appareil pour démarrer le transfert.</string>
-    <string name="transfer_links">Transférer des liens</string>
     <string name="transfer_link_server_instructions">1. Activez l\'interrupteur ci-dessus pour démarrer le serveur\n2. Assurez-vous que les deux appareils sont sur le même réseau Wi-Fi\n3. Scannez le code QR depuis l\'option d\'importation de liens sur un autre appareil</string>
     <string name="scan_qr_to_get_data">Scannez pour obtenir les liens d\'un altro dispositivo</string>
 

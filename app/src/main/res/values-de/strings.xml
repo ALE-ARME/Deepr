@@ -159,27 +159,9 @@
     <string name="remove_thumbnail">Miniaturansicht entfernen</string>
 
     <!-- New Search Labels -->
-    <string name="search_hint">Suche nach Links, Namen oder Tags...</string>
-    <string name="search_all_tags">Alle Tags</string>
-    <string name="search_selected_tags">Ausgewählte Tags (%d)</string>
 
     <!-- Web Server & Import -->
-    <string name="local_web_server">Lokaler Webserver</string>
-    <string name="local_web_server_description">Verwalte deine Links über einen Webbrowser</string>
-    <string name="web_server_status">Serverstatus: %s</string>
-    <string name="web_server_running">Aktiv</string>
-    <string name="web_server_stopped">Gestoppt</string>
-    <string name="web_server_address">Serveradresse: %s</string>
-    <string name="web_server_instructions">Öffne diese Adresse im Browser eines beliebigen Geräts im selben WLAN-Netzwerk.</string>
-    <string name="copy_address">Adresse kopieren</string>
-    <string name="address_copied">Adresse kopiert</string>
-    <string name="start_server">Server starten</string>
-    <string name="stop_server">Server stoppen</string>
-    <string name="import_from_other_device">Von anderem Gerät importieren</string>
-    <string name="import_from_other_device_description">Links über WLAN übertragen</string>
     <string name="scan_qr_code">QR-Code scannen</string>
-    <string name="scan_qr_instructions">Scanne den auf dem anderen Gerät angezeigten QR-Code, um die Übertragung zu starten.</string>
-    <string name="transfer_links">Links übertragen</string>
     <string name="transfer_link_server_instructions">1. Schalte den Schalter oben ein, um den Server zu starten\n2. Stelle sicher, dass beide Geräte im selben WLAN sind\n3. Scanne den QR-Code von der Option "Links importieren" auf dem anderen Gerät</string>
     <string name="scan_qr_to_get_data">Scannen, um Links von einem anderen Gerät zu erhalten</string>
 

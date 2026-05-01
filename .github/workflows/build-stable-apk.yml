@@ -2,7 +2,7 @@ name: Build Stable APK
 on:
   push:
     branches:
-      - 8-ui-polish-dialogs
+      - 8-ui-polish-and-translations-cleanup
   workflow_dispatch:
 
 jobs:
