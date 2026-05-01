@@ -34,7 +34,7 @@ fun QrCodeDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("QR Code") },
+        title = { Text(stringResource(R.string.show_qr_code)) },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -69,7 +69,7 @@ fun QrCodeDialog(
                         ) {
                             Image(
                                 painter = painterResource(id = R.drawable.app_logo),
-                                contentDescription = "App Logo",
+                                contentDescription = stringResource(R.string.app_logo),
                                 modifier =
                                     Modifier
                                         .fillMaxSize(0.5f)
