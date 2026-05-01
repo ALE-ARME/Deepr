@@ -574,19 +574,17 @@ fun HomeScreen(
                                         },
                                         onLongPress = {
                                             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            var linkToPass = clipboardLink?.url ?: ""
+                                            var linkToPass = ""
 
                                             // Fallback: try to read directly from clipboard manager if state is empty
-                                            if (linkToPass.isBlank()) {
-                                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                                val clipData = clipboard.primaryClip
-                                                if (clipData != null && clipData.itemCount > 0) {
-                                                    val text = clipData.getItemAt(0).text?.toString()
-                                                    if (!text.isNullOrBlank()) {
-                                                        val normalized = normalizeLink(text)
-                                                        if (isValidDeeplink(normalized)) {
-                                                            linkToPass = normalized
-                                                        }
+                                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                            val clipData = clipboard.primaryClip
+                                            if (clipData != null && clipData.itemCount > 0) {
+                                                val text = clipData.getItemAt(0).text?.toString()
+                                                if (!text.isNullOrBlank()) {
+                                                    val normalized = normalizeLink(text)
+                                                    if (isValidDeeplink(normalized)) {
+                                                        linkToPass = normalized
                                                     }
                                                 }
                                             }
