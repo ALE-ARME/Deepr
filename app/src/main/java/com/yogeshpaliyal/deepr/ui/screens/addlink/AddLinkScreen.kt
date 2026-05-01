@@ -104,7 +104,7 @@ fun AddLinkScreen(
     val fetchMetadataErrorText = stringResource(R.string.failed_to_fetch_metadata)
     val removeTagText = stringResource(R.string.remove_tag)
     val deeplinkExistsText = stringResource(R.string.deeplink_already_exists)
-    
+
     var deeprInfo by remember(selectedLink.id, selectedLink.link) {
         mutableStateOf(selectedLink)
     }
@@ -115,7 +115,7 @@ fun AddLinkScreen(
             deeprInfo = selectedLink
         }
     }
-    
+
     var isError by remember { mutableStateOf(false) }
     var isNameError by remember { mutableStateOf(false) }
     val isFetchingMetadata = remember { mutableStateOf(false) }
@@ -126,7 +126,7 @@ fun AddLinkScreen(
             isFetchingMetadata.value = true
             viewModel.fetchMetaData(urlToFetch) {
                 isFetchingMetadata.value = false
-                if (it != null) {
+                if (it != null && normalizeLink(deeprInfo.link) == urlToFetch) {
                     deeprInfo = deeprInfo.copy(name = it.title ?: "", thumbnail = it.image ?: "")
                     isNameError = false
                 } else {
