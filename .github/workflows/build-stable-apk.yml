@@ -2,7 +2,7 @@ name: Build Stable APK
 on:
   push:
     branches:
-      - 5-feature-profiles-home-integration
+      - 5-feat-profiles-and-clipboard-autopopulate
   workflow_dispatch:
 
 jobs:
