@@ -575,7 +575,10 @@ fun AddLinkScreen(
                                 trailingIcon = {
                                     IconButton(
                                         onClick = { selectedTags.remove(tag) },
-                                        modifier = Modifier.size(16.dp),
+                                        modifier =
+                                            Modifier
+                                                .minimumInteractiveComponentSize()
+                                                .size(16.dp),
                                     ) {
                                         Icon(TablerIcons.X, contentDescription = removeTagText)
                                     }
