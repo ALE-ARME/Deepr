@@ -623,7 +623,8 @@ fun AddLinkScreen(
                     if (!isCreate) {
                         Button(
                             onClick = {
-                                if (isValidDeeplink(deeprInfo.link)) save(false) else isError = true
+                                val normalizedLink = normalizeLink(deeprInfo.link)
+                                if (isValidDeeplink(normalizedLink)) save(false) else isError = true
                             },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
@@ -633,8 +634,9 @@ fun AddLinkScreen(
                     } else {
                         Button(
                             onClick = {
-                                if (isValidDeeplink(deeprInfo.link)) {
-                                    if (deeprQueries.getDeeprByLink(deeprInfo.link).executeAsList().isNotEmpty()) {
+                                val normalizedLink = normalizeLink(deeprInfo.link)
+                                if (isValidDeeplink(normalizedLink)) {
+                                    if (deeprQueries.getDeeprByLink(normalizedLink).executeAsList().isNotEmpty()) {
                                         Toast.makeText(context, deeplinkExistsText, Toast.LENGTH_SHORT).show()
                                     } else {
                                         save(true)
@@ -656,8 +658,9 @@ fun AddLinkScreen(
                             FilledTonalButton(
                                 modifier = Modifier.weight(1f),
                                 onClick = {
-                                    if (isValidDeeplink(deeprInfo.link)) {
-                                        if (deeprQueries.getDeeprByLink(deeprInfo.link).executeAsList().isNotEmpty()) {
+                                    val normalizedLink = normalizeLink(deeprInfo.link)
+                                    if (isValidDeeplink(normalizedLink)) {
+                                        if (deeprQueries.getDeeprByLink(normalizedLink).executeAsList().isNotEmpty()) {
                                             Toast.makeText(context, deeplinkExistsText, Toast.LENGTH_SHORT).show()
                                         } else {
                                             save(false)
@@ -674,7 +677,7 @@ fun AddLinkScreen(
                             FilledTonalButton(
                                 modifier = Modifier.weight(1f),
                                 onClick = {
-                                    isError = !openDeeplink(context, deeprInfo.link)
+                                    isError = !openDeeplink(context, normalizeLink(deeprInfo.link))
                                 },
                                 shape = RoundedCornerShape(12.dp),
                             ) {
