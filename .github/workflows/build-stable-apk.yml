@@ -2,7 +2,7 @@ name: Build Stable APK
 on:
   push:
     branches:
-      - 7-feature-long-press-clipboard-autopopulate
+      - 11-ui-refactor-add-link-and-cleanup
   workflow_dispatch:
 
 jobs:
