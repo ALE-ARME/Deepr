@@ -23,7 +23,6 @@
     <string name="remove_from_favourites">Rimuovi dai preferiti</string>
     <string name="add_link">Aggiungi Link</string>
     <string name="add">Aggiungi</string>
-    <string name="clipboard_link_detected">Link rilevato negli appunti</string>
     <string name="fetch_name_from_link">Recupera metadati dal link</string>
     <string name="create_tag">Crea Tag</string>
     <string name="new_tag">Nuova etichetta (Facoltativo)</string>
@@ -280,10 +279,6 @@
     <string name="link_already_exists">Il link esiste già</string>
     <string name="silent_save_profile">Profilo per Salvataggio Silenzioso</string>
     <string name="silent_save_profile_description">I link salvati tramite \'Salva silenziosamente\' andranno in questo profilo</string>
-
-    
-    <string name="clipboard_link_detection">Rilevamento link negli appunti</string>
-    <string name="clipboard_link_detection_description">Rileva automaticamente i link negli appunti e mostra un banner per aggiungerli</string>
 
     
     <string name="web_title">Deepr - Gestore Link</string>

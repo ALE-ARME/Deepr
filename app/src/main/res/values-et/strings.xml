@@ -105,7 +105,6 @@
     <string name="api_get_server_info">Tuvasta serveri teave ja API juhend</string>
     <string name="delete">Kustuta</string>
     <string name="linkedin">LinkedIn</string>
-    <string name="clipboard_link_detected">Tuvastasin lõikelaualt lingi</string>
     <string name="notes">Märkmed</string>
     <string name="custom_port">Sinu valitud port</string>
     <string name="sync_status_invalid">⚠ Failivorming on vigane</string>

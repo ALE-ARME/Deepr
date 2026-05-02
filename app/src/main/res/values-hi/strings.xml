@@ -133,7 +133,6 @@
     <string name="add_to_favourites">अपनी पसंद में जोड़ें</string>
     <string name="remove_from_favourites">अपनी पसंद से हटाएं</string>
     <string name="no_favourites_found">पसंदीदा सूची खाली है</string>
-    <string name="clipboard_link_detected">क्लिपबोर्ड में लिंक मिला</string>
     <string name="all_tags">सारे टैग्स</string>
     <string name="no_search_results">कोई नतीजा नहीं मिला</string>
     <string name="no_search_results_description">अलग-अलग शब्दों से खोजकर देखें</string>
