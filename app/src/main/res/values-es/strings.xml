@@ -249,4 +249,4 @@
     <string name="preview">Vista previa</string>
     <string name="link_placeholder">https://ejemplo.com o app://deeplink</string>
     <string name="switch_profile">Cambiar de perfil</string>
-</resources>
+<string name="web_optional">Opcional</string></resources>

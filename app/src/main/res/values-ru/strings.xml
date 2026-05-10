@@ -208,4 +208,7 @@
     <string name="import_deeplinks_description">Импортировать ссылки из файла CSV</string>
     <string name="import_deeplinks">Импортировать ссылки</string>
     <string name="copy_link">Копировать ссылку</string>
+    <string name="web_optional">Опционально</string>
+    <string name="notes_optional">Заметки (Опционально)</string>
+    <string name="tags_optional">Теги (Опционально)</string>
 </resources>

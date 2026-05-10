@@ -304,6 +304,7 @@
     <string name="web_add_new_link">Add New Link</string>
     <string name="web_link_url">Link URL</string>
     <string name="web_link_name">Link Name</string>
+    <string name="format_optional">%1$s (%2$s)</string>
     <string name="web_optional">Optional</string>
     <string name="web_notes_optional">Notes (Optional)</string>
     <string name="web_tags_optional">Tags (Optional)</string>
@@ -354,4 +355,4 @@
     <string name="preview">Preview</string>
     <string name="link_placeholder">https://example.com or app://deeplink</string>
     <string name="switch_profile">Switch Profile</string>
-</resources>
+<string name="notes_optional">Notes (Optional)</string><string name="tags_optional">Tags (Optional)</string></resources>

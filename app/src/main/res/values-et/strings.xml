@@ -42,7 +42,7 @@
     <string name="made_with_love">Tehtud Indias suure ❤️-ga</string>
     <string name="sync_file_not_selected">Sa pole ühtegi sünkroonimisfaili valinud</string>
     <string name="interval_7_days">Iga 7 päeva järel (kord nädalas)</string>
-    <string name="filter">Filter</string>
+    <string name="filter">Filtreeri</string>
     <string name="language_description">Muuda rakenduse keelt</string>
     <string name="language_dialog_title">Vali keel</string>
     <string name="link_copied">Link on kopeeritud</string>
@@ -243,4 +243,4 @@
     <string name="invalid_link_silent_save">Vigane link</string>
     <string name="failed_to_save_link">Lingi salvestamine ei õnnestunud</string>
     <string name="link_already_exists">Selline link on juba olemas</string>
-</resources>
+<string name="web_optional">Valikuline</string><string name="notes_optional">Märkmed (Valikuline)</string><string name="tags_optional">Sildid (Valikuline)</string></resources>

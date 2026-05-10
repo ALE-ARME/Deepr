@@ -8,7 +8,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -18,6 +20,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -39,14 +42,13 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.InputChip
-import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -57,6 +59,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -119,7 +122,7 @@ fun AddLinkScreen(
     val isFetchingMetadata = remember { mutableStateOf(false) }
 
     val fetchMetadata: (String?) -> Unit = { link ->
-        val urlToFetch = link ?: deeprInfo.link
+        val urlToFetch = normalizeLink(link ?: deeprInfo.link)
         if (urlToFetch.isNotBlank()) {
             isFetchingMetadata.value = true
             viewModel.fetchMetaData(urlToFetch) {
@@ -243,7 +246,7 @@ fun AddLinkScreen(
     Scaffold(
         modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            LargeTopAppBar(
+            TopAppBar(
                 title = {
                     Text(
                         text = if (isCreate) stringResource(R.string.create) else stringResource(R.string.edit),
@@ -258,412 +261,453 @@ fun AddLinkScreen(
             )
         },
     ) { paddingValues ->
-        Column(
+        BoxWithConstraints(
             modifier =
                 Modifier
-                    .padding(paddingValues)
-                    .verticalScroll(rememberScrollState())
                     .fillMaxSize()
+                    .padding(paddingValues)
                     .imePadding(),
         ) {
+            val minHeight = maxHeight
             Column(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp), // Reduced overall distance
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()),
             ) {
-                // Link Input Field
-                OutlinedTextField(
-                    value = deeprInfo.link,
-                    onValueChange = {
-                        deeprInfo = deeprInfo.copy(link = it)
-                        isError = false
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.enter_deeplink_command)) },
-                    placeholder = { Text(stringResource(R.string.link_placeholder)) },
-                    isError = isError,
-                    supportingText = {
-                        if (isError) {
-                            Text(text = stringResource(R.string.invalid_empty_deeplink))
-                        }
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = TablerIcons.Link,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                        )
-                    },
-                    trailingIcon = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (deeprInfo.link.isNotEmpty()) {
-                                ClearInputIconButton(
-                                    onClick = {
-                                        deeprInfo = deeprInfo.copy(link = "")
-                                        isError = false
-                                    },
-                                )
+                Column(
+                    modifier =
+                        Modifier
+                            .heightIn(min = minHeight)
+                            .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp), // Reduced overall distance
+                ) {
+                    // Link Input Field
+                    OutlinedTextField(
+                        value = deeprInfo.link,
+                        onValueChange = {
+                            deeprInfo = deeprInfo.copy(link = it)
+                            isError = false
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.enter_deeplink_command)) },
+                        placeholder = { Text(stringResource(R.string.link_placeholder)) },
+                        isError = isError,
+                        supportingText = {
+                            if (isError) {
+                                Text(text = stringResource(R.string.invalid_empty_deeplink))
                             }
-                            IconButton(onClick = { qrScanner.launch(ScanOptions()) }) {
-                                Icon(
-                                    imageVector = TablerIcons.Qrcode,
-                                    contentDescription = stringResource(R.string.qr_scanner),
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                            }
-                        }
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                )
-
-                // Name input field with Fetch Icon inside (Closer to link field)
-                OutlinedTextField(
-                    value = deeprInfo.name,
-                    onValueChange = {
-                        deeprInfo = deeprInfo.copy(name = it)
-                        isNameError = false
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.enter_link_name)) },
-                    supportingText = {
-                        if (isNameError) {
-                            Text(text = stringResource(R.string.enter_link_name_error))
-                        }
-                    },
-                    trailingIcon = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (deeprInfo.name.isNotEmpty()) {
-                                ClearInputIconButton(
-                                    onClick = {
-                                        deeprInfo = deeprInfo.copy(name = "")
-                                        isNameError = false
-                                    },
-                                )
-                            }
-                            IconButton(
-                                enabled = deeprInfo.link.isNotBlank() && !isFetchingMetadata.value,
-                                onClick = { fetchMetadata(null) },
-                            ) {
-                                if (isFetchingMetadata.value) {
-                                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                                } else {
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = TablerIcons.Link,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        },
+                        trailingIcon = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (deeprInfo.link.isNotEmpty()) {
+                                    ClearInputIconButton(
+                                        onClick = {
+                                            deeprInfo = deeprInfo.copy(link = "")
+                                            isError = false
+                                        },
+                                    )
+                                }
+                                IconButton(onClick = { qrScanner.launch(ScanOptions()) }) {
                                     Icon(
-                                        imageVector = TablerIcons.Download,
-                                        contentDescription = stringResource(R.string.fetch_name_from_link),
+                                        imageVector = TablerIcons.Qrcode,
+                                        contentDescription = stringResource(R.string.qr_scanner),
                                         tint = MaterialTheme.colorScheme.primary,
                                     )
                                 }
                             }
-                        }
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                )
+                        },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                    )
 
-                // Thumbnail Preview Section
-                AnimatedVisibility(
-                    visible = deeprInfo.thumbnail.isNotEmpty() && isThumbnailEnable,
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically(),
-                ) {
-                    ElevatedCard(
+                    // Name input field with Fetch Icon inside (Closer to link field)
+                    OutlinedTextField(
+                        value = deeprInfo.name,
+                        onValueChange = {
+                            deeprInfo = deeprInfo.copy(name = it)
+                            isNameError = false
+                        },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        label = { Text(stringResource(R.string.enter_link_name)) },
+                        supportingText = {
+                            if (isNameError) {
+                                Text(text = stringResource(R.string.enter_link_name_error))
+                            }
+                        },
+                        trailingIcon = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (deeprInfo.name.isNotEmpty()) {
+                                    ClearInputIconButton(
+                                        onClick = {
+                                            deeprInfo = deeprInfo.copy(name = "")
+                                            isNameError = false
+                                        },
+                                    )
+                                }
+                                IconButton(
+                                    enabled = deeprInfo.link.isNotBlank() && !isFetchingMetadata.value,
+                                    onClick = { fetchMetadata(null) },
+                                ) {
+                                    if (isFetchingMetadata.value) {
+                                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                    } else {
+                                        Icon(
+                                            imageVector = TablerIcons.Download,
+                                            contentDescription = stringResource(R.string.fetch_name_from_link),
+                                            tint = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                    )
+
+                    // Thumbnail Preview Section
+                    AnimatedVisibility(
+                        visible = deeprInfo.thumbnail.isNotEmpty() && isThumbnailEnable,
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically(),
                     ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ElevatedCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
-                                Icon(
-                                    imageVector = TablerIcons.Photo,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp),
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = TablerIcons.Photo,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.preview),
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                }
+
+                                AsyncImage(
+                                    model = deeprInfo.thumbnail,
+                                    contentDescription = deeprInfo.name,
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .aspectRatio(1.91f)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                                    placeholder = null,
+                                    error = null,
+                                    contentScale = ContentScale.Crop,
                                 )
-                                Text(
-                                    text = stringResource(R.string.preview),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.SemiBold,
+
+                                // Thumbnail URL field
+                                OutlinedTextField(
+                                    value = deeprInfo.thumbnail,
+                                    onValueChange = { deeprInfo = deeprInfo.copy(thumbnail = it) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    label = { Text(stringResource(R.string.thumbnail_url)) },
+                                    trailingIcon =
+                                        if (deeprInfo.thumbnail.isEmpty()) {
+                                            null
+                                        } else {
+                                            { ClearInputIconButton(onClick = { deeprInfo = deeprInfo.copy(thumbnail = "") }) }
+                                        },
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(12.dp),
                                 )
                             }
-
-                            AsyncImage(
-                                model = deeprInfo.thumbnail,
-                                contentDescription = deeprInfo.name,
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .aspectRatio(1.91f)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                                placeholder = null,
-                                error = null,
-                                contentScale = ContentScale.Crop,
-                            )
-
-                            // Thumbnail URL field
-                            OutlinedTextField(
-                                value = deeprInfo.thumbnail,
-                                onValueChange = { deeprInfo = deeprInfo.copy(thumbnail = it) },
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text(stringResource(R.string.thumbnail_url)) },
-                                trailingIcon =
-                                    if (deeprInfo.thumbnail.isEmpty()) {
-                                        null
-                                    } else {
-                                        { ClearInputIconButton(onClick = { deeprInfo = deeprInfo.copy(thumbnail = "") }) }
-                                    },
-                                singleLine = true,
-                                shape = RoundedCornerShape(12.dp),
-                            )
                         }
                     }
-                }
 
-                // Notes Section (Icon inside box, non-accent color)
-                OutlinedTextField(
-                    value = deeprInfo.notes,
-                    onValueChange = { deeprInfo = deeprInfo.copy(notes = it) },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.notes)) },
-                    placeholder = { Text(stringResource(R.string.enter_notes)) },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = TablerIcons.Note,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                        )
-                    },
-                    trailingIcon =
-                        if (deeprInfo.notes.isEmpty()) {
-                            null
-                        } else {
-                            { ClearInputIconButton(onClick = { deeprInfo = deeprInfo.copy(notes = "") }) }
-                        },
-                    minLines = 2,
-                    maxLines = 3,
-                    shape = RoundedCornerShape(12.dp),
-                )
-
-                // Profile Selection (On its own line)
-                var profileExpanded by remember { mutableStateOf(false) }
-                val selectedProfile = allProfiles.firstOrNull { it.id == selectedProfileId }
-
-                ExposedDropdownMenuBox(
-                    expanded = profileExpanded,
-                    onExpandedChange = { profileExpanded = !profileExpanded },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
+                    // Notes Section (Icon inside box, non-accent color)
+                    var isNotesFocused by remember { mutableStateOf(false) }
                     OutlinedTextField(
-                        value = selectedProfile?.name ?: "",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text(stringResource(R.string.profile)) },
+                        value = deeprInfo.notes,
+                        onValueChange = { deeprInfo = deeprInfo.copy(notes = it) },
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = profileExpanded) },
-                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                                .onFocusChanged { isNotesFocused = it.isFocused },
+                        label = {
+                            if (isNotesFocused || deeprInfo.notes.isNotEmpty()) {
+                                Text(stringResource(R.string.notes))
+                            } else {
+                                Text(
+                                    stringResource(
+                                        R.string.format_optional,
+                                        stringResource(R.string.notes),
+                                        stringResource(R.string.web_optional),
+                                    ),
+                                )
+                            }
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = TablerIcons.Note,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        },
+                        trailingIcon =
+                            if (deeprInfo.notes.isEmpty()) {
+                                null
+                            } else {
+                                { ClearInputIconButton(onClick = { deeprInfo = deeprInfo.copy(notes = "") }) }
+                            },
+                        maxLines = 4,
                         shape = RoundedCornerShape(12.dp),
-                        leadingIcon = { Icon(TablerIcons.User, contentDescription = null, modifier = Modifier.size(18.dp)) },
                     )
 
-                    ExposedDropdownMenu(
+                    // Profile Selection (On its own line)
+                    var profileExpanded by remember { mutableStateOf(false) }
+                    val selectedProfile = allProfiles.firstOrNull { it.id == selectedProfileId }
+
+                    ExposedDropdownMenuBox(
                         expanded = profileExpanded,
-                        onDismissRequest = { profileExpanded = false },
-                    ) {
-                        allProfiles.forEach { profile ->
-                            DropdownMenuItem(
-                                text = { Text(profile.name) },
-                                onClick = {
-                                    selectedProfileId = profile.id
-                                    profileExpanded = false
-                                },
-                            )
-                        }
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.create_profile), color = MaterialTheme.colorScheme.primary) },
-                            onClick = {
-                                profileExpanded = false
-                                showCreateProfileDialog = true
-                            },
-                        )
-                    }
-                }
-
-                // Tags Input (On its own line)
-                var tagsExpanded by remember { mutableStateOf(false) }
-                val filteredTags = allTags.filter { it.name.contains(newTagName, ignoreCase = true) && !selectedTags.contains(it) }
-                val showCreateTag = newTagName.isNotBlank() && allTags.none { it.name.equals(newTagName, ignoreCase = true) }
-
-                ExposedDropdownMenuBox(
-                    expanded = tagsExpanded && (showCreateTag || filteredTags.isNotEmpty()),
-                    onExpandedChange = { tagsExpanded = !tagsExpanded },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    OutlinedTextField(
-                        value = newTagName,
-                        onValueChange = {
-                            newTagName = it
-                            tagsExpanded = true
-                        },
-                        label = { Text(stringResource(R.string.tags)) },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable, true),
-                        singleLine = true,
-                        leadingIcon = { Icon(TablerIcons.Tag, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = tagsExpanded) },
-                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                        shape = RoundedCornerShape(12.dp),
-                    )
-
-                    ExposedDropdownMenu(
-                        expanded = tagsExpanded && (showCreateTag || filteredTags.isNotEmpty()),
-                        onDismissRequest = { tagsExpanded = false },
-                    ) {
-                        if (showCreateTag) {
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        stringResource(R.string.create_tag) + ": \"$newTagName\"",
-                                        color = MaterialTheme.colorScheme.primary,
-                                    )
-                                },
-                                onClick = {
-                                    selectedTags.add(Tags(0, newTagName))
-                                    newTagName = ""
-                                    tagsExpanded = false
-                                },
-                            )
-                        }
-                        filteredTags.forEach { tag ->
-                            DropdownMenuItem(
-                                text = { Text(tag.name) },
-                                onClick = {
-                                    selectedTags.add(tag)
-                                    newTagName = ""
-                                    tagsExpanded = false
-                                },
-                            )
-                        }
-                    }
-                }
-
-                // Selected Tags Display
-                AnimatedVisibility(
-                    visible = selectedTags.isNotEmpty(),
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically(),
-                ) {
-                    FlowRow(
+                        onExpandedChange = { profileExpanded = !profileExpanded },
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        selectedTags.forEach { tag ->
-                            InputChip(
-                                selected = true,
-                                onClick = { /* Do nothing */ },
-                                label = { Text(tag.name, style = MaterialTheme.typography.labelSmall) },
-                                trailingIcon = {
-                                    IconButton(
-                                        onClick = { selectedTags.remove(tag) },
-                                        modifier =
-                                            Modifier
-                                                .minimumInteractiveComponentSize()
-                                                .size(16.dp),
-                                    ) {
-                                        Icon(TablerIcons.X, contentDescription = removeTagText)
-                                    }
+                        OutlinedTextField(
+                            value = selectedProfile?.name ?: "",
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text(stringResource(R.string.profile)) },
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = profileExpanded) },
+                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                            shape = RoundedCornerShape(12.dp),
+                            leadingIcon = { Icon(TablerIcons.User, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                        )
+
+                        ExposedDropdownMenu(
+                            expanded = profileExpanded,
+                            onDismissRequest = { profileExpanded = false },
+                        ) {
+                            allProfiles.forEach { profile ->
+                                DropdownMenuItem(
+                                    text = { Text(profile.name) },
+                                    onClick = {
+                                        selectedProfileId = profile.id
+                                        profileExpanded = false
+                                    },
+                                )
+                            }
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.create_profile), color = MaterialTheme.colorScheme.primary) },
+                                onClick = {
+                                    profileExpanded = false
+                                    showCreateProfileDialog = true
                                 },
-                                shape = RoundedCornerShape(percent = 50),
                             )
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                    // Tags Input (On its own line)
+                    var tagsExpanded by remember { mutableStateOf(false) }
+                    var isTagsFocused by remember { mutableStateOf(false) }
+                    val filteredTags = allTags.filter { it.name.contains(newTagName, ignoreCase = true) && !selectedTags.contains(it) }
+                    val showCreateTag = newTagName.isNotBlank() && allTags.none { it.name.equals(newTagName, ignoreCase = true) }
 
-                // Action Buttons (Compact)
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    if (!isCreate) {
-                        Button(
-                            onClick = {
-                                val normalizedLink = normalizeLink(deeprInfo.link)
-                                if (isValidDeeplink(normalizedLink)) save(false) else isError = true
+                    ExposedDropdownMenuBox(
+                        expanded = tagsExpanded && (showCreateTag || filteredTags.isNotEmpty()),
+                        onExpandedChange = { tagsExpanded = !tagsExpanded },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        OutlinedTextField(
+                            value = newTagName,
+                            onValueChange = {
+                                newTagName = it
+                                tagsExpanded = true
                             },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                        ) {
-                            Text(stringResource(R.string.save))
-                        }
-                    } else {
-                        Button(
-                            onClick = {
-                                val normalizedLink = normalizeLink(deeprInfo.link)
-                                if (isValidDeeplink(normalizedLink)) {
-                                    if (deeprQueries.getDeeprByLink(normalizedLink).executeAsList().isNotEmpty()) {
-                                        Toast.makeText(context, deeplinkExistsText, Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        save(true)
-                                    }
+                            label = {
+                                if (isTagsFocused || newTagName.isNotEmpty()) {
+                                    Text(stringResource(R.string.tags))
                                 } else {
-                                    isError = true
+                                    Text(
+                                        stringResource(
+                                            R.string.format_optional,
+                                            stringResource(R.string.tags),
+                                            stringResource(R.string.web_optional),
+                                        ),
+                                    )
                                 }
                             },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable, true)
+                                    .onFocusChanged { isTagsFocused = it.isFocused },
+                            singleLine = true,
+                            leadingIcon = { Icon(TablerIcons.Tag, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = tagsExpanded) },
+                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                             shape = RoundedCornerShape(12.dp),
-                        ) {
-                            Text(stringResource(R.string.save_and_execute))
-                        }
+                        )
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ExposedDropdownMenu(
+                            expanded = tagsExpanded && (showCreateTag || filteredTags.isNotEmpty()),
+                            onDismissRequest = { tagsExpanded = false },
                         ) {
-                            FilledTonalButton(
-                                modifier = Modifier.weight(1f),
+                            if (showCreateTag) {
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            stringResource(R.string.create_tag) + ": \"$newTagName\"",
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                    },
+                                    onClick = {
+                                        selectedTags.add(Tags(0, newTagName))
+                                        newTagName = ""
+                                        tagsExpanded = false
+                                    },
+                                )
+                            }
+                            filteredTags.forEach { tag ->
+                                DropdownMenuItem(
+                                    text = { Text(tag.name) },
+                                    onClick = {
+                                        selectedTags.add(tag)
+                                        newTagName = ""
+                                        tagsExpanded = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+
+                    // Selected Tags Display
+                    AnimatedVisibility(
+                        visible = selectedTags.isNotEmpty(),
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically(),
+                    ) {
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            selectedTags.forEach { tag ->
+                                InputChip(
+                                    selected = true,
+                                    onClick = { /* Do nothing */ },
+                                    label = { Text(tag.name, style = MaterialTheme.typography.bodyMedium) },
+                                    trailingIcon = {
+                                        Icon(
+                                            imageVector = TablerIcons.X,
+                                            contentDescription = removeTagText,
+                                            modifier =
+                                                Modifier
+                                                    .padding(end = 4.dp)
+                                                    .size(16.dp)
+                                                    .clickable { selectedTags.remove(tag) },
+                                        )
+                                    },
+                                    shape = RoundedCornerShape(percent = 50),
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    // Action Buttons (Compact)
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        if (!isCreate) {
+                            Button(
+                                onClick = {
+                                    val normalizedLink = normalizeLink(deeprInfo.link)
+                                    if (isValidDeeplink(normalizedLink)) save(false) else isError = true
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                            ) {
+                                Text(stringResource(R.string.save))
+                            }
+                        } else {
+                            Button(
                                 onClick = {
                                     val normalizedLink = normalizeLink(deeprInfo.link)
                                     if (isValidDeeplink(normalizedLink)) {
                                         if (deeprQueries.getDeeprByLink(normalizedLink).executeAsList().isNotEmpty()) {
                                             Toast.makeText(context, deeplinkExistsText, Toast.LENGTH_SHORT).show()
                                         } else {
-                                            save(false)
+                                            save(true)
                                         }
                                     } else {
                                         isError = true
                                     }
                                 },
+                                modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
                             ) {
-                                Text(stringResource(R.string.save))
+                                Text(stringResource(R.string.save_and_execute))
                             }
 
-                            FilledTonalButton(
-                                modifier = Modifier.weight(1f),
-                                onClick = {
-                                    isError = !openDeeplink(context, normalizeLink(deeprInfo.link))
-                                },
-                                shape = RoundedCornerShape(12.dp),
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
-                                Text(stringResource(R.string.execute))
+                                FilledTonalButton(
+                                    modifier = Modifier.weight(1f),
+                                    onClick = {
+                                        val normalizedLink = normalizeLink(deeprInfo.link)
+                                        if (isValidDeeplink(normalizedLink)) {
+                                            if (deeprQueries.getDeeprByLink(normalizedLink).executeAsList().isNotEmpty()) {
+                                                Toast.makeText(context, deeplinkExistsText, Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                save(false)
+                                            }
+                                        } else {
+                                            isError = true
+                                        }
+                                    },
+                                    shape = RoundedCornerShape(12.dp),
+                                ) {
+                                    Text(stringResource(R.string.save))
+                                }
+
+                                FilledTonalButton(
+                                    modifier = Modifier.weight(1f),
+                                    onClick = {
+                                        isError = !openDeeplink(context, normalizeLink(deeprInfo.link))
+                                    },
+                                    shape = RoundedCornerShape(12.dp),
+                                ) {
+                                    Text(stringResource(R.string.execute))
+                                }
                             }
                         }
                     }
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
-                Spacer(modifier = Modifier.height(8.dp))
             }
         }
     }
