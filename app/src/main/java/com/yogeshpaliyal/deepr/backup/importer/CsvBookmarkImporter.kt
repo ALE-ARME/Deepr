@@ -265,6 +265,41 @@ class CsvBookmarkImporter(
         settings[Constants.Settings.CLIPBOARD_LINK_DETECTION_ENABLED]?.toBooleanStrictOrNull()?.let {
             appPreferenceDataStore.setClipboardLinkDetectionEnabled(it)
         }
+
+        // Apply new settings
+        settings[Constants.Settings.LANGUAGE_CODE]?.let {
+            appPreferenceDataStore.setLanguageCode(it)
+        }
+        settings[Constants.Settings.AUTO_BACKUP_ENABLED]?.toBooleanStrictOrNull()?.let {
+            appPreferenceDataStore.setAutoBackupEnabled(it)
+        }
+        settings[Constants.Settings.AUTO_BACKUP_LOCATION]?.let {
+            appPreferenceDataStore.setAutoBackupLocation(it)
+        }
+        settings[Constants.Settings.AUTO_BACKUP_INTERVAL]?.toLongOrNull()?.let {
+            appPreferenceDataStore.setAutoBackupInterval(it)
+        }
+        settings[Constants.Settings.SYNC_ENABLED]?.toBooleanStrictOrNull()?.let {
+            appPreferenceDataStore.setSyncEnabled(it)
+        }
+        settings[Constants.Settings.SYNC_FILE_PATH]?.let {
+            appPreferenceDataStore.setSyncFilePath(it)
+        }
+        settings[Constants.Settings.SERVER_PORT]?.let {
+            appPreferenceDataStore.setServerPort(it)
+        }
+        settings[Constants.Settings.DEFAULT_PROFILE_NAME]?.let { name ->
+            val profile = deeprQueries.getProfileByName(name, 0L).executeAsOneOrNull()
+            if (profile != null) {
+                appPreferenceDataStore.setDefaultProfileId(profile.id)
+            }
+        }
+        settings[Constants.Settings.SILENT_SAVE_PROFILE_NAME]?.let { name ->
+            val profile = deeprQueries.getProfileByName(name, 0L).executeAsOneOrNull()
+            if (profile != null) {
+                appPreferenceDataStore.setSilentSaveProfileId(profile.id)
+            }
+        }
     }
 
     override fun getDisplayName(): String = "CSV"

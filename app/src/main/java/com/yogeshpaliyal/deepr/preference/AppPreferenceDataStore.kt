@@ -96,6 +96,11 @@ class AppPreferenceDataStore(
             preferences[AUTO_BACKUP_LOCATION] ?: "" // Default to empty path
         }
 
+    val getAutoBackupInterval: Flow<Long> =
+        context.appDataStore.data.map { preferences ->
+            preferences[AUTO_BACKUP_INTERVAL] ?: 24L // Default to 24 hours
+        }
+
     val getLastBackupTime: Flow<Long> =
         context.appDataStore.data.map { preferences ->
             preferences[LAST_BACKUP_TIME] ?: 0L // Default to 0 (never backed up)
@@ -303,6 +308,14 @@ class AppPreferenceDataStore(
         settings[Constants.Settings.THEME_MODE] = getThemeMode.first()
         settings[Constants.Settings.SHOW_NOTES_INSTEAD_OF_COUNTER] = getShowNotesInsteadOfCounter.first().toString()
         settings[Constants.Settings.CLIPBOARD_LINK_DETECTION_ENABLED] = getClipboardLinkDetectionEnabled.first().toString()
+
+        settings[Constants.Settings.LANGUAGE_CODE] = getLanguageCode.first()
+        settings[Constants.Settings.AUTO_BACKUP_ENABLED] = getAutoBackupEnabled.first().toString()
+        settings[Constants.Settings.AUTO_BACKUP_LOCATION] = getAutoBackupLocation.first()
+        settings[Constants.Settings.AUTO_BACKUP_INTERVAL] = getAutoBackupInterval.first().toString()
+        settings[Constants.Settings.SYNC_ENABLED] = getSyncEnabled.first().toString()
+        settings[Constants.Settings.SYNC_FILE_PATH] = getSyncFilePath.first()
+        settings[Constants.Settings.SERVER_PORT] = getServerPort.first()
         return settings
     }
 }

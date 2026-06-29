@@ -6,6 +6,7 @@ import androidx.documentfile.provider.DocumentFile
 import com.yogeshpaliyal.deepr.DeeprQueries
 import com.yogeshpaliyal.deepr.GetLinksForBackup
 import com.yogeshpaliyal.deepr.preference.AppPreferenceDataStore
+import com.yogeshpaliyal.deepr.util.Constants
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -43,7 +44,21 @@ class AutoBackupWorker(
                     return@withContext
                 }
 
-                val settings = preferenceDataStore.collectExportableSettings()
+                val settings = preferenceDataStore.collectExportableSettings().toMutableMap()
+
+                // Resolve default and silent profiles names
+                val defaultProfileId = preferenceDataStore.getDefaultProfileId.first()
+                val defaultProfileName = defaultProfileId?.let { deeprQueries.getProfileById(it).executeAsOneOrNull()?.name }
+                if (defaultProfileName != null) {
+                    settings[Constants.Settings.DEFAULT_PROFILE_NAME] = defaultProfileName
+                }
+
+                val silentSaveProfileId = preferenceDataStore.getSilentSaveProfileId.first()
+                val silentSaveProfileName = deeprQueries.getProfileById(silentSaveProfileId).executeAsOneOrNull()?.name
+                if (silentSaveProfileName != null) {
+                    settings[Constants.Settings.SILENT_SAVE_PROFILE_NAME] = silentSaveProfileName
+                }
+
                 val success =
                     saveToSelectedLocation(
                         location = location,

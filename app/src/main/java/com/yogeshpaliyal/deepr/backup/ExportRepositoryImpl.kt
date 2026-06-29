@@ -9,8 +9,10 @@ import android.provider.MediaStore
 import com.yogeshpaliyal.deepr.DeeprQueries
 import com.yogeshpaliyal.deepr.R
 import com.yogeshpaliyal.deepr.preference.AppPreferenceDataStore
+import com.yogeshpaliyal.deepr.util.Constants
 import com.yogeshpaliyal.deepr.util.RequestResult
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
@@ -37,7 +39,20 @@ class ExportRepositoryImpl(
 
         val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
         val fileName = "deepr_export_$timeStamp.csv"
-        val settings = appPreferenceDataStore.collectExportableSettings()
+        val settings = appPreferenceDataStore.collectExportableSettings().toMutableMap()
+
+        // Resolve default and silent profiles names
+        val defaultProfileId = appPreferenceDataStore.getDefaultProfileId.first()
+        val defaultProfileName = defaultProfileId?.let { deeprQueries.getProfileById(it).executeAsOneOrNull()?.name }
+        if (defaultProfileName != null) {
+            settings[Constants.Settings.DEFAULT_PROFILE_NAME] = defaultProfileName
+        }
+
+        val silentSaveProfileId = appPreferenceDataStore.getSilentSaveProfileId.first()
+        val silentSaveProfileName = deeprQueries.getProfileById(silentSaveProfileId).executeAsOneOrNull()?.name
+        if (silentSaveProfileName != null) {
+            settings[Constants.Settings.SILENT_SAVE_PROFILE_NAME] = silentSaveProfileName
+        }
 
         return withContext(Dispatchers.IO) {
             // If URI is provided, export to that location

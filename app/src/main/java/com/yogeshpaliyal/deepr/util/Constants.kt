@@ -24,5 +24,14 @@ object Constants {
         const val THEME_MODE = "themeMode"
         const val SHOW_NOTES_INSTEAD_OF_COUNTER = "showNotesInsteadOfCounter"
         const val CLIPBOARD_LINK_DETECTION_ENABLED = "clipboardLinkDetectionEnabled"
+        const val LANGUAGE_CODE = "languageCode"
+        const val AUTO_BACKUP_ENABLED = "autoBackupEnabled"
+        const val AUTO_BACKUP_LOCATION = "autoBackupLocation"
+        const val AUTO_BACKUP_INTERVAL = "autoBackupInterval"
+        const val SYNC_ENABLED = "syncEnabled"
+        const val SYNC_FILE_PATH = "syncFilePath"
+        const val SERVER_PORT = "serverPort"
+        const val DEFAULT_PROFILE_NAME = "defaultProfileName"
+        const val SILENT_SAVE_PROFILE_NAME = "silentSaveProfileName"
     }
 }
