@@ -767,7 +767,7 @@ open class LocalServerRepositoryImpl(
                         get("/api/private/status") {
                             try {
                                 val isUnlocked = accountViewModel.isPrivateMode.value
-                                call.respond(HttpStatusCode.OK, mapOf("isUnlocked" to isUnlocked))
+                                call.respond(HttpStatusCode.OK, PrivateStatusResponse(isUnlocked = isUnlocked))
                             } catch (e: Exception) {
                                 call.respond(HttpStatusCode.InternalServerError, ErrorResponse(e.message ?: "Unknown error"))
                             }
@@ -785,7 +785,7 @@ open class LocalServerRepositoryImpl(
                         post("/api/private/request-unlock") {
                             try {
                                 if (accountViewModel.isPrivateMode.value) {
-                                    call.respond(HttpStatusCode.OK, mapOf("isUnlocked" to true))
+                                    call.respond(HttpStatusCode.OK, PrivateStatusResponse(isUnlocked = true))
                                     return@post
                                 }
 
@@ -839,7 +839,10 @@ open class LocalServerRepositoryImpl(
                                 val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
                                 manager.notify(1001, notification)
 
-                                call.respond(HttpStatusCode.OK, mapOf("isUnlocked" to false, "status" to "Prompted on device"))
+                                call.respond(
+                                    HttpStatusCode.OK,
+                                    PrivateStatusResponse(isUnlocked = false, status = "Prompted on device"),
+                                )
                             } catch (e: Exception) {
                                 Log.e("LocalServer", "Error requesting private unlock", e)
                                 call.respond(HttpStatusCode.InternalServerError, ErrorResponse(e.message ?: "Unknown error"))
@@ -1463,4 +1466,10 @@ data class ServerInfoResponse(
     val appVersion: String,
     val status: String = "running",
     val endpoints: List<EndpointInfo>,
+)
+
+@Serializable
+data class PrivateStatusResponse(
+    val isUnlocked: Boolean,
+    val status: String? = null,
 )
