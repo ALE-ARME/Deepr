@@ -196,5 +196,8 @@
     <string name="unlock_private_links_desc">Usa la biometria per accedere al profilo e ai link privati</string>
     <string name="web_unlock_request_title">Richiesta sblocco browser</string>
     <string name="web_unlock_request_desc">Tocca per sbloccare la sezione privata sul server web.</string>
-    <string name="lock_private_links">Blocca Link Privati</string>
+    <string name="hide_link_url">Nascondi URL del link</string>
+    <string name="hide_link_url_description">Nascondi l\'indirizzo URL del link negli elementi salvati</string>
+    <string name="hide_date_of_creation">Nascondi data di creazione</string>
+    <string name="hide_date_of_creation_description">Nascondi la data di creazione negli elementi salvati</string>
 </resources>

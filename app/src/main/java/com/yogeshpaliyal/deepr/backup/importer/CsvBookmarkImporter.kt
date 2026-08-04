@@ -265,6 +265,12 @@ class CsvBookmarkImporter(
         settings[Constants.Settings.CLIPBOARD_LINK_DETECTION_ENABLED]?.toBooleanStrictOrNull()?.let {
             appPreferenceDataStore.setClipboardLinkDetectionEnabled(it)
         }
+        settings[Constants.Settings.HIDE_LINK_URL]?.toBooleanStrictOrNull()?.let {
+            appPreferenceDataStore.setHideLinkUrl(it)
+        }
+        settings[Constants.Settings.HIDE_DATE_OF_CREATION]?.toBooleanStrictOrNull()?.let {
+            appPreferenceDataStore.setHideDateOfCreation(it)
+        }
 
         // Apply new settings
         settings[Constants.Settings.LANGUAGE_CODE]?.let {

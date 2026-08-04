@@ -119,6 +119,8 @@ fun DeeprItem(
     isThumbnailEnable: Boolean,
     modifier: Modifier = Modifier,
     showNotesInsteadOfCounter: Boolean = false,
+    hideLinkUrl: Boolean = false,
+    hideDateOfCreation: Boolean = false,
     analyticsManager: com.yogeshpaliyal.deepr.analytics.AnalyticsManager = org.koin.compose.koinInject(),
 ) {
     var tagsExpanded by remember { mutableStateOf(false) }
@@ -176,7 +178,7 @@ fun DeeprItem(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         if (account.name.isNotEmpty()) {
@@ -188,20 +190,24 @@ fun DeeprItem(
                                 color = getDeeprItemTextColor(account.isFavourite),
                             )
                         }
-                        Text(
-                            text = account.link,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = getDeeprItemTextColor(account.isFavourite),
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (!hideLinkUrl || account.name.isEmpty()) {
                             Text(
-                                text = formatDateTime(account.createdAt),
+                                text = account.link,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = getDeeprItemTextColor(account.isFavourite),
                             )
+                        }
+                        if (!hideDateOfCreation) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = formatDateTime(account.createdAt),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = getDeeprItemTextColor(account.isFavourite),
+                                )
+                            }
                         }
                     }
                     Column(horizontalAlignment = Alignment.End) {

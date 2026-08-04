@@ -750,6 +750,28 @@ class AccountViewModel(
         }
     }
 
+    // Hide link URL preference methods
+    val hideLinkUrl =
+        preferenceDataStore.getHideLinkUrl
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    fun setHideLinkUrl(hide: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            preferenceDataStore.setHideLinkUrl(hide)
+        }
+    }
+
+    // Hide date of creation preference methods
+    val hideDateOfCreation =
+        preferenceDataStore.getHideDateOfCreation
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    fun setHideDateOfCreation(hide: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            preferenceDataStore.setHideDateOfCreation(hide)
+        }
+    }
+
     // Google Drive auto backup preference methods
     val googleDriveAutoBackupEnabled =
         preferenceDataStore.getGoogleDriveAutoBackupEnabled

@@ -49,6 +49,8 @@ class AppPreferenceDataStore(
             booleanPreferencesKey("google_drive_auto_backup_enabled")
         private val CLIPBOARD_LINK_DETECTION_ENABLED =
             booleanPreferencesKey("clipboard_link_detection_enabled")
+        private val HIDE_LINK_URL = booleanPreferencesKey("hide_link_url")
+        private val HIDE_DATE_OF_CREATION = booleanPreferencesKey("hide_date_of_creation")
     }
 
     val getSortingOrder: Flow<@SortType String> =
@@ -161,6 +163,16 @@ class AppPreferenceDataStore(
     val getClipboardLinkDetectionEnabled: Flow<Boolean> =
         context.appDataStore.data.map { preferences ->
             preferences[CLIPBOARD_LINK_DETECTION_ENABLED] ?: true // Default to enabled
+        }
+
+    val getHideLinkUrl: Flow<Boolean> =
+        context.appDataStore.data.map { preferences ->
+            preferences[HIDE_LINK_URL] ?: false // Default to false (link URL shown)
+        }
+
+    val getHideDateOfCreation: Flow<Boolean> =
+        context.appDataStore.data.map { preferences ->
+            preferences[HIDE_DATE_OF_CREATION] ?: false // Default to false (date shown)
         }
 
     suspend fun setSortingOrder(order: @SortType String) {
@@ -294,6 +306,18 @@ class AppPreferenceDataStore(
         }
     }
 
+    suspend fun setHideLinkUrl(hide: Boolean) {
+        context.appDataStore.edit { prefs ->
+            prefs[HIDE_LINK_URL] = hide
+        }
+    }
+
+    suspend fun setHideDateOfCreation(hide: Boolean) {
+        context.appDataStore.edit { prefs ->
+            prefs[HIDE_DATE_OF_CREATION] = hide
+        }
+    }
+
     /**
      * Collects user-facing settings suitable for export to CSV.
      * Device-specific settings (paths, timestamps, IDs) are excluded.
@@ -308,6 +332,8 @@ class AppPreferenceDataStore(
         settings[Constants.Settings.THEME_MODE] = getThemeMode.first()
         settings[Constants.Settings.SHOW_NOTES_INSTEAD_OF_COUNTER] = getShowNotesInsteadOfCounter.first().toString()
         settings[Constants.Settings.CLIPBOARD_LINK_DETECTION_ENABLED] = getClipboardLinkDetectionEnabled.first().toString()
+        settings[Constants.Settings.HIDE_LINK_URL] = getHideLinkUrl.first().toString()
+        settings[Constants.Settings.HIDE_DATE_OF_CREATION] = getHideDateOfCreation.first().toString()
 
         settings[Constants.Settings.LANGUAGE_CODE] = getLanguageCode.first()
         settings[Constants.Settings.AUTO_BACKUP_ENABLED] = getAutoBackupEnabled.first().toString()

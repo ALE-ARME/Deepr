@@ -320,6 +320,10 @@
     <string name="rate_review">Rate &amp; Review</string>
     <string name="rate_review_description">Rate us on the Play Store</string>
     <string name="switch_open_counter_description">Show note action instead of opened count on links</string>
+    <string name="hide_link_url">Hide link URL</string>
+    <string name="hide_link_url_description">Hide the link URL address on saved link items</string>
+    <string name="hide_date_of_creation">Hide date of creation</string>
+    <string name="hide_date_of_creation_description">Hide the creation date on saved link items</string>
     <string name="about">About</string>
     <string name="configuration">Configuration</string>
     <string name="close">Close</string>

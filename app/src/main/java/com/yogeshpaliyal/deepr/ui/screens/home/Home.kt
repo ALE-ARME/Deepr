@@ -817,6 +817,8 @@ fun Content(
     val accounts by viewModel.accounts.collectAsStateWithLifecycle()
     val isThumbnailEnable by viewModel.isThumbnailEnable.collectAsStateWithLifecycle()
     val showNotesInsteadOfCounter by viewModel.showNotesInsteadOfCounter.collectAsStateWithLifecycle()
+    val hideLinkUrl by viewModel.hideLinkUrl.collectAsStateWithLifecycle()
+    val hideDateOfCreation by viewModel.hideDateOfCreation.collectAsStateWithLifecycle()
     val showMoreBottomSheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showMoreSelectedItem by remember { mutableStateOf<GetLinksAndTags?>(null) }
     val analyticsManager = koinInject<AnalyticsManager>()
@@ -971,6 +973,8 @@ fun Content(
             viewType = currentViewType,
             onItemClick = onItemClick,
             showNotesInsteadOfCounter = showNotesInsteadOfCounter,
+            hideLinkUrl = hideLinkUrl,
+            hideDateOfCreation = hideDateOfCreation,
         )
     }
     showMoreSelectedItem?.let { account ->
@@ -1271,6 +1275,8 @@ fun DeeprList(
     modifier: Modifier = Modifier,
     viewType: @ViewType Int = ViewType.LIST,
     showNotesInsteadOfCounter: Boolean = false,
+    hideLinkUrl: Boolean = false,
+    hideDateOfCreation: Boolean = false,
 ) {
     // Determine which empty state to show
     val isSearchActive = searchQuery.isNotBlank()
@@ -1381,6 +1387,8 @@ fun DeeprList(
                             onTagClick = onTagClick,
                             isThumbnailEnable = isThumbnailEnable,
                             showNotesInsteadOfCounter = showNotesInsteadOfCounter,
+                            hideLinkUrl = hideLinkUrl,
+                            hideDateOfCreation = hideDateOfCreation,
                         )
                     }
                 }
@@ -1409,6 +1417,7 @@ fun DeeprList(
                             onItemClick = onItemClick,
                             isThumbnailEnable = isThumbnailEnable,
                             showNotesInsteadOfCounter = showNotesInsteadOfCounter,
+                            hideLinkUrl = hideLinkUrl,
                         )
                     }
                 }
@@ -1433,6 +1442,7 @@ fun DeeprList(
                             onItemClick = onItemClick,
                             isThumbnailEnable = isThumbnailEnable,
                             showNotesInsteadOfCounter = showNotesInsteadOfCounter,
+                            hideLinkUrl = hideLinkUrl,
                         )
                     }
                 }

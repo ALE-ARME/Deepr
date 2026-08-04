@@ -33,5 +33,7 @@ object Constants {
         const val SERVER_PORT = "serverPort"
         const val DEFAULT_PROFILE_NAME = "defaultProfileName"
         const val SILENT_SAVE_PROFILE_NAME = "silentSaveProfileName"
+        const val HIDE_LINK_URL = "hideLinkUrl"
+        const val HIDE_DATE_OF_CREATION = "hideDateOfCreation"
     }
 }

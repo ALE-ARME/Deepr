@@ -41,6 +41,7 @@ fun DeeprItemGrid(
     modifier: Modifier = Modifier,
     isThumbnailEnable: Boolean = true,
     showNotesInsteadOfCounter: Boolean = false,
+    hideLinkUrl: Boolean = false,
 ) {
     DeeprItemSwipable(account, onItemClick, modifier) {
         Card(
@@ -95,15 +96,17 @@ fun DeeprItemGrid(
                         Spacer(modifier = Modifier.height(4.dp))
                     }
 
-                    Text(
-                        text = account.link,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = getDeeprItemTextColor(account.isFavourite),
-                    )
+                    if (!hideLinkUrl || account.name.isEmpty()) {
+                        Text(
+                            text = account.link,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = getDeeprItemTextColor(account.isFavourite),
+                        )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),

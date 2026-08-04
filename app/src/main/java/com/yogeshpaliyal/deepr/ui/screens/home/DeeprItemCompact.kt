@@ -42,6 +42,7 @@ fun DeeprItemCompact(
     isThumbnailEnable: Boolean,
     modifier: Modifier = Modifier,
     showNotesInsteadOfCounter: Boolean = false,
+    hideLinkUrl: Boolean = false,
 ) {
     DeeprItemSwipable(account, onItemClick, modifier) {
         Card(
@@ -97,13 +98,15 @@ fun DeeprItemCompact(
                                 color = getDeeprItemTextColor(account.isFavourite),
                             )
                         }
-                        Text(
-                            text = account.link,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = getDeeprItemTextColor(account.isFavourite),
-                        )
+                        if (!hideLinkUrl || account.name.isEmpty()) {
+                            Text(
+                                text = account.link,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = getDeeprItemTextColor(account.isFavourite),
+                            )
+                        }
 
                         OpenCountAndTags(account, Modifier.fillMaxWidth(), showNotesInsteadOfCounter)
                     }

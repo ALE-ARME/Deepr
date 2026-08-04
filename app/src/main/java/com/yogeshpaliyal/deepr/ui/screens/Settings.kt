@@ -53,10 +53,12 @@ import com.yogeshpaliyal.deepr.viewmodel.AccountViewModel
 import compose.icons.TablerIcons
 import compose.icons.tablericons.AlertTriangle
 import compose.icons.tablericons.ArrowLeft
+import compose.icons.tablericons.Calendar
 import compose.icons.tablericons.Download
 import compose.icons.tablericons.Folders
 import compose.icons.tablericons.InfoCircle
 import compose.icons.tablericons.Language
+import compose.icons.tablericons.Link
 import compose.icons.tablericons.Moon
 import compose.icons.tablericons.Note
 import compose.icons.tablericons.Photo
@@ -97,6 +99,8 @@ fun SettingsScreen(
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val showNotesInsteadOfCounter by viewModel.showNotesInsteadOfCounter.collectAsStateWithLifecycle()
     val defaultPageFavourites by viewModel.defaultPageFavouritesEnabled.collectAsStateWithLifecycle()
+    val hideLinkUrl by viewModel.hideLinkUrl.collectAsStateWithLifecycle()
+    val hideDateOfCreation by viewModel.hideDateOfCreation.collectAsStateWithLifecycle()
 
     // Collect profiles and silent save profile preference.
     val allProfiles by viewModel.allProfiles.collectAsStateWithLifecycle()
@@ -247,6 +251,36 @@ fun SettingsScreen(
                             ?: stringResource(R.string.silent_save_profile_description),
                     onClick = {
                         showSilentSaveProfileDialog = true
+                    },
+                )
+
+                SettingsItem(
+                    TablerIcons.Link,
+                    title = stringResource(R.string.hide_link_url),
+                    description = stringResource(R.string.hide_link_url_description),
+                    onClick = {
+                        viewModel.setHideLinkUrl(!hideLinkUrl)
+                    },
+                    trailing = {
+                        Switch(
+                            checked = hideLinkUrl,
+                            onCheckedChange = { viewModel.setHideLinkUrl(it) },
+                        )
+                    },
+                )
+
+                SettingsItem(
+                    TablerIcons.Calendar,
+                    title = stringResource(R.string.hide_date_of_creation),
+                    description = stringResource(R.string.hide_date_of_creation_description),
+                    onClick = {
+                        viewModel.setHideDateOfCreation(!hideDateOfCreation)
+                    },
+                    trailing = {
+                        Switch(
+                            checked = hideDateOfCreation,
+                            onCheckedChange = { viewModel.setHideDateOfCreation(it) },
+                        )
                     },
                 )
             }
