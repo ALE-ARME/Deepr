@@ -246,12 +246,69 @@ fun DeeprItem(
                                 )
                             }
                         }
+                    }
+                }
+
+                val hasTags = !selectedTags.isNullOrEmpty()
+                val hasNoteOrCounter = !showNotesInsteadOfCounter || account.notes.isNotBlank()
+
+                if (hasTags || hasNoteOrCounter) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            if (hasTags) {
+                                // Determine max tags to show based on expanded state
+                                val maxTagsToShow = if (tagsExpanded) selectedTags.size else 9
+                                val visibleTags = selectedTags.take(maxTagsToShow)
+                                val hiddenTagsCount = selectedTags.size - visibleTags.size
+
+                                FlowRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    visibleTags.forEach { tag ->
+                                        val isSelected = selectedTag.any { it.name == tag.trim() }
+                                        FilterChip(
+                                            modifier = Modifier.padding(0.dp),
+                                            elevation = null,
+                                            selected = isSelected,
+                                            onClick = { onTagClick(tag.trim()) },
+                                            label = { Text(tag.trim()) },
+                                            shape = RoundedCornerShape(percent = 50),
+                                        )
+                                    }
+                                }
+
+                                // Show "Load More" or "Show Less" button if there are more than 9 tags
+                                if (selectedTags.size > 9) {
+                                    androidx.compose.material3.TextButton(
+                                        onClick = { tagsExpanded = !tagsExpanded },
+                                        modifier = Modifier.padding(start = 4.dp),
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                    ) {
+                                        Text(
+                                            text =
+                                                if (tagsExpanded) {
+                                                    stringResource(R.string.show_less_tags)
+                                                } else {
+                                                    stringResource(R.string.load_more_tags, hiddenTagsCount)
+                                                },
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                        )
+                                    }
+                                }
+                            }
+                        }
 
                         if (!showNotesInsteadOfCounter) {
                             Text(
                                 text = stringResource(R.string.opened_count, account.openedCount),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = getDeeprItemTextColor(account.isFavourite),
+                                modifier = Modifier.padding(start = 8.dp),
                             )
                         } else if (account.notes.isNotBlank()) {
                             IconButton(onClick = { onItemClick(MenuItem.ViewNote(account)) }) {
@@ -261,49 +318,6 @@ fun DeeprItem(
                                     tint = getDeeprItemTextColor(account.isFavourite),
                                 )
                             }
-                        }
-                    }
-                }
-
-                Column {
-                    // Determine max tags to show based on expanded state
-                    val maxTagsToShow = if (tagsExpanded) selectedTags?.size ?: 0 else 9
-                    val visibleTags = selectedTags?.take(maxTagsToShow) ?: emptyList()
-                    val hiddenTagsCount = (selectedTags?.size ?: 0) - visibleTags.size
-
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        visibleTags.forEach { tag ->
-                            val isSelected = selectedTag.any { it.name == tag.trim() }
-                            FilterChip(
-                                modifier = Modifier.padding(0.dp),
-                                elevation = null,
-                                selected = isSelected,
-                                onClick = { onTagClick(tag.trim()) },
-                                label = { Text(tag.trim()) },
-                                shape = RoundedCornerShape(percent = 50),
-                            )
-                        }
-                    }
-
-                    // Show "Load More" or "Show Less" button if there are more than 9 tags
-                    if ((selectedTags?.size ?: 0) > 9) {
-                        androidx.compose.material3.TextButton(
-                            onClick = { tagsExpanded = !tagsExpanded },
-                            modifier = Modifier.padding(start = 4.dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                        ) {
-                            Text(
-                                text =
-                                    if (tagsExpanded) {
-                                        stringResource(R.string.show_less_tags)
-                                    } else {
-                                        stringResource(R.string.load_more_tags, hiddenTagsCount)
-                                    },
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                            )
                         }
                     }
                 }
