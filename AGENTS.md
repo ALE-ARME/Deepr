@@ -10,8 +10,8 @@ branch:
 - branch senza numero: sono la versione stand alone e feature specifica dei branch vecchi. per ora li sto testando prima di aprire la PR (CHE TI DIR├ô IO QUANDO APRIRE, NON FARLO DI TUA INIZIATIVA)
 # Indicazioni pre creare nuovi branch
 - metti un nome descrittivo e niente numeri
-- deve essere basata su YOGESH
-- deve contenere il file yml di build stable apk preso da ARME, cos├¼ GitHub pu├▓ compilare l'app quando pushi
+- deve essere basata su ARME (NON su YOGESH)
+- il workflow yml di build stable apk deve essere presente nel branch (partendo da ARME è già incluso): così GitHub può compilare l'app quando pushi. Verifica che non venga rimosso durante la pulizia pre-PR
 # come aprire una PR
 - quando ti dico IO di aprire una PR devi fare in modo che compaiano solo file di codice dell'app, quindi niente yml o altri file (quando pulisci il branch prima di aprire la PR fai il diff e vedi se hai scordato file inutili) 
 - quando apri la PR metti nel commento principale (quello del "post") una descrizione di cosa fa quel branch, cos├¼ Yogesh sa cosa aspettarsi
