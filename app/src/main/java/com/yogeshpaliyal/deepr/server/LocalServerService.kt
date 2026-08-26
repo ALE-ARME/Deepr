@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.yogeshpaliyal.deepr.MainActivity
 import com.yogeshpaliyal.deepr.R
@@ -25,6 +26,7 @@ const val PORT = "port"
 class LocalServerService : Service() {
     private val localServerRepository: LocalServerRepository by inject()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var observeJob: kotlinx.coroutines.Job? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -39,7 +41,11 @@ class LocalServerService : Service() {
         when (intent?.action) {
             ACTION_START -> {
                 // Start foreground immediately to avoid ANR
-                startForeground(NOTIFICATION_ID, createNotification(null))
+                try {
+                    startForeground(NOTIFICATION_ID, createNotification(null))
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error starting foreground service", e)
+                }
                 val port = intent.getIntExtra(PORT, 8080)
                 serviceScope.launch {
                     localServerRepository.startServer(port)
@@ -54,21 +60,42 @@ class LocalServerService : Service() {
                     stopSelf()
                 }
             }
+
+            ACTION_TOGGLE -> {
+                serviceScope.launch {
+                    if (localServerRepository.isRunning.value) {
+                        localServerRepository.stopServer()
+                        stopForeground(STOP_FOREGROUND_REMOVE)
+                        stopSelf()
+                    } else {
+                        try {
+                            startForeground(NOTIFICATION_ID, createNotification(null))
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error starting foreground service", e)
+                        }
+                        val port = intent.getIntExtra(PORT, 8080)
+                        localServerRepository.startServer(port)
+                        observeServerState()
+                    }
+                }
+            }
         }
         return START_STICKY
     }
 
     private fun observeServerState() {
-        serviceScope.launch {
-            localServerRepository.isRunning.collect { isRunning ->
-                if (isRunning) {
-                    val serverUrl = localServerRepository.serverUrl.first()
-                    val notificationManager =
-                        getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-                    notificationManager.notify(NOTIFICATION_ID, createNotification(serverUrl))
+        observeJob?.cancel()
+        observeJob =
+            serviceScope.launch {
+                localServerRepository.isRunning.collect { isRunning ->
+                    if (isRunning) {
+                        val serverUrl = localServerRepository.serverUrl.first()
+                        val notificationManager =
+                            getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+                        notificationManager.notify(NOTIFICATION_ID, createNotification(serverUrl))
+                    }
                 }
             }
-        }
     }
 
     private fun createNotificationChannel() {
@@ -137,10 +164,12 @@ class LocalServerService : Service() {
     }
 
     companion object {
+        private const val TAG = "LocalServerService"
         private const val CHANNEL_ID = "local_server_channel"
         private const val NOTIFICATION_ID = 1001
         const val ACTION_START = "com.yogeshpaliyal.deepr.ACTION_START_SERVER"
         const val ACTION_STOP = "com.yogeshpaliyal.deepr.ACTION_STOP_SERVER"
+        const val ACTION_TOGGLE = "com.yogeshpaliyal.deepr.ACTION_TOGGLE_SERVER"
 
         fun startService(
             context: Context,
@@ -151,10 +180,21 @@ class LocalServerService : Service() {
                     action = ACTION_START
                     putExtra(PORT, port)
                 }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    try {
+                        context.startForegroundService(intent)
+                    } catch (e: Exception) {
+                        // Background FGS-start restrictions may reject the request when the
+                        // broadcast comes from an automation app; fall back to a plain service.
+                        Log.w(TAG, "startForegroundService restricted, falling back to startService", e)
+                        context.startService(intent)
+                    }
+                } else {
+                    context.startService(intent)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to start server service from background", e)
             }
         }
 
@@ -163,7 +203,11 @@ class LocalServerService : Service() {
                 Intent(context, LocalServerService::class.java).apply {
                     action = ACTION_STOP
                 }
-            context.startService(intent)
+            try {
+                context.startService(intent)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to stop server service", e)
+            }
         }
     }
 }

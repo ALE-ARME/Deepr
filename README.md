@@ -30,6 +30,42 @@
 - Save links to markdown file in local storage. (can be used for obsidian)
 - **Local network server:** Access and manage links from other devices on the same network
 
+### 🤖 Local Server Automation (MacroDroid / Tasker / Intent)
+
+You can automatically start, stop, or toggle the Deepr Local Network Server using Android Broadcast Intents from external automation apps like **MacroDroid**, **Tasker**, or via **ADB**. The server binds to all network interfaces, so it works on both **Wi-Fi** and **mobile data**.
+
+- **Target Package**: `com.yogeshpaliyal.deepr`
+- **Target Receiver Class**: `com.yogeshpaliyal.deepr.server.LocalServerReceiver`
+
+#### Supported Intent Actions:
+
+| Action | Intent Action String | Description |
+|--------|----------------------|-------------|
+| **Start Server** | `com.yogeshpaliyal.deepr.ACTION_START_SERVER` | Starts the local server using the saved port |
+| **Stop Server** | `com.yogeshpaliyal.deepr.ACTION_STOP_SERVER` | Stops the running local server |
+| **Toggle Server** | `com.yogeshpaliyal.deepr.ACTION_TOGGLE_SERVER` | Toggles the local server state (Starts if stopped, Stops if running) |
+
+An optional integer extra `port` can be passed to override the saved port when starting.
+
+#### How to configure in MacroDroid:
+1. Add an Action -> **Applications** -> **Send Intent**.
+2. Set **Target**: `Broadcast`
+3. Set **Action**: `com.yogeshpaliyal.deepr.ACTION_TOGGLE_SERVER` (or `ACTION_START_SERVER` / `ACTION_STOP_SERVER`)
+4. Set **Package Name**: `com.yogeshpaliyal.deepr`
+5. Set **Class Name**: `com.yogeshpaliyal.deepr.server.LocalServerReceiver`
+
+#### Command-line via ADB:
+```bash
+# Start server
+adb shell am broadcast -a com.yogeshpaliyal.deepr.ACTION_START_SERVER -n com.yogeshpaliyal.deepr/.server.LocalServerReceiver
+
+# Stop server
+adb shell am broadcast -a com.yogeshpaliyal.deepr.ACTION_STOP_SERVER -n com.yogeshpaliyal.deepr/.server.LocalServerReceiver
+
+# Toggle server
+adb shell am broadcast -a com.yogeshpaliyal.deepr.ACTION_TOGGLE_SERVER -n com.yogeshpaliyal.deepr/.server.LocalServerReceiver
+```
+
 ### Build Variant specific features
 
 | Feature                           | GitHub Release | F-Droid | Play Store | Pro Version on Play Store |
