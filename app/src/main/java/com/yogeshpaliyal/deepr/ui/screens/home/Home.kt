@@ -466,12 +466,18 @@ fun HomeScreen(
                                 }
                             }
                             if (textFieldState.text.isNotEmpty()) {
-                                ClearInputIconButton(
-                                    onClick = {
-                                        textFieldState.clearText()
-                                    },
-                                    modifier = Modifier.padding(start = 4.dp, end = 8.dp),
-                                )
+                                // 48dp slot so the clear icon sits exactly where the
+                                // sort button sits when the search bar is collapsed
+                                Box(
+                                    modifier = Modifier.size(48.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    ClearInputIconButton(
+                                        onClick = {
+                                            textFieldState.clearText()
+                                        },
+                                    )
+                                }
                             }
                         }
                     }
