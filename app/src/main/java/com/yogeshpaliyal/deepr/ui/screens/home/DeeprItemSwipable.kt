@@ -1,21 +1,24 @@
 package com.yogeshpaliyal.deepr.ui.screens.home
 
-import android.view.ViewConfiguration
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.exponentialDecay
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.matchParentSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -28,7 +31,7 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -37,6 +40,7 @@ import com.yogeshpaliyal.deepr.R
 import compose.icons.TablerIcons
 import compose.icons.tablericons.Edit
 import compose.icons.tablericons.Trash
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -67,31 +71,42 @@ fun DeeprItemSwipable(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    val context = LocalContext.current
+    val viewConfig = LocalViewConfiguration.current
+    val touchSlopPx = viewConfig.touchSlop
     val scope = rememberCoroutineScope()
-    val offsetX = remember { Animatable(0f) }
+    var offsetX by remember { mutableFloatStateOf(0f) }
     var itemWidthPx by remember { mutableIntStateOf(0) }
+    var animJob by remember { mutableStateOf<Job?>(null) }
+
+    LaunchedEffect(account.id) {
+        offsetX = 0f
+    }
 
     Box(
         modifier =
             modifier
-                .fillMaxSize()
-                .clip(RoundedCornerShape(8.dp))
-                .onSizeChanged { itemWidthPx = it.width },
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp)),
     ) {
-        SwipeBackground(offsetX = offsetX.value, widthPx = itemWidthPx)
+        SwipeBackground(
+            offsetX = offsetX,
+            widthPx = itemWidthPx,
+            modifier = Modifier.matchParentSize(),
+        )
 
         Box(
             modifier =
                 Modifier
-                    .matchParentSize()
-                    .offset { IntOffset(offsetX.value.roundToInt(), 0) }
-                    .pointerInput(Unit) {
-                        val touchSlopPx = ViewConfiguration.get(context).touchSlop.toFloat()
+                    .fillMaxWidth()
+                    .onSizeChanged { itemWidthPx = it.width }
+                    .offset { IntOffset(offsetX.roundToInt(), 0) }
+                    .pointerInput(account.id) {
                         val velocityTracker = VelocityTracker()
 
                         awaitEachGesture {
                             awaitFirstDown(requireUnconsumed = false)
+                            animJob?.cancel()
+
                             var axis = DragAxis.Undecided
                             var totalDragX = 0f
                             var totalDragY = 0f
@@ -131,9 +146,7 @@ fun DeeprItemSwipable(
                                         change.position,
                                     )
                                     val maxSwipePx = size.width.toFloat()
-                                    offsetX.snapTo(
-                                        (offsetX.value + dragX).coerceIn(-maxSwipePx, maxSwipePx),
-                                    )
+                                    offsetX = (offsetX + dragX).coerceIn(-maxSwipePx, maxSwipePx)
                                     change.consume()
                                 }
 
@@ -142,33 +155,72 @@ fun DeeprItemSwipable(
 
                             if (axis == DragAxis.Horizontal &&
                                 itemWidthPx > 0 &&
-                                abs(offsetX.value) > 0f
+                                abs(offsetX) > 0f
                             ) {
                                 val thresholdPx = itemWidthPx * DISMISS_THRESHOLD_FRACTION
                                 val velocity = velocityTracker.calculateVelocity().x
-                                val dismissedByDistance = abs(offsetX.value) >= thresholdPx
+                                val dismissedByDistance = abs(offsetX) >= thresholdPx
                                 val dismissedByFling =
                                     abs(velocity) > FLING_VELOCITY_THRESHOLD &&
-                                        sign(velocity) == sign(offsetX.value)
+                                        sign(velocity) == sign(offsetX)
 
+                                val currentOffset = offsetX
                                 if (dismissedByDistance || dismissedByFling) {
-                                    val direction = sign(offsetX.value)
-                                    scope.launch {
-                                        offsetX.animateTo(itemWidthPx * direction)
-                                        onItemClick(
+                                    val direction = sign(currentOffset)
+                                    animJob =
+                                        scope.launch {
+                                            animate(
+                                                initialValue = currentOffset,
+                                                targetValue = direction * itemWidthPx,
+                                                animationSpec = tween(durationMillis = 150),
+                                            ) { value, _ ->
+                                                offsetX = value
+                                            }
                                             if (direction > 0) {
-                                                MenuItem.Edit(account)
+                                                onItemClick(MenuItem.Edit(account))
                                             } else {
-                                                MenuItem.Delete(account)
-                                            },
-                                        )
-                                        offsetX.animateTo(0f, exponentialDecay())
-                                    }
+                                                onItemClick(MenuItem.Delete(account))
+                                            }
+                                            animate(
+                                                initialValue = direction * itemWidthPx,
+                                                targetValue = 0f,
+                                                animationSpec = tween(durationMillis = 200),
+                                            ) { value, _ ->
+                                                offsetX = value
+                                            }
+                                        }
                                 } else {
-                                    scope.launch { offsetX.animateTo(0f) }
+                                    animJob =
+                                        scope.launch {
+                                            animate(
+                                                initialValue = currentOffset,
+                                                targetValue = 0f,
+                                                animationSpec =
+                                                    spring(
+                                                        dampingRatio = Spring.DampingRatioNoBouncy,
+                                                        stiffness = Spring.StiffnessMedium,
+                                                    ),
+                                            ) { value, _ ->
+                                                offsetX = value
+                                            }
+                                        }
                                 }
-                            } else if (abs(offsetX.value) > 0f) {
-                                scope.launch { offsetX.animateTo(0f) }
+                            } else if (abs(offsetX) > 0f) {
+                                val currentOffset = offsetX
+                                animJob =
+                                    scope.launch {
+                                        animate(
+                                            initialValue = currentOffset,
+                                            targetValue = 0f,
+                                            animationSpec =
+                                                spring(
+                                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                                    stiffness = Spring.StiffnessMedium,
+                                                ),
+                                        ) { value, _ ->
+                                            offsetX = value
+                                        }
+                                    }
                             }
                         }
                     },
@@ -182,6 +234,7 @@ fun DeeprItemSwipable(
 private fun SwipeBackground(
     offsetX: Float,
     widthPx: Int,
+    modifier: Modifier = Modifier,
 ) {
     val progress =
         if (widthPx > 0) {
@@ -197,16 +250,17 @@ private fun SwipeBackground(
 
     Box(
         modifier =
-            Modifier
-                .fillMaxSize()
+            modifier
                 .background(backgroundColor, RoundedCornerShape(8.dp)),
         contentAlignment = alignment,
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = stringResource(label),
-            tint = Color.White.copy(alpha = progress),
-            modifier = Modifier.padding(16.dp),
-        )
+        if (progress > 0f) {
+            Icon(
+                imageVector = icon,
+                contentDescription = stringResource(label),
+                tint = Color.White.copy(alpha = progress),
+                modifier = Modifier.padding(16.dp),
+            )
+        }
     }
 }
