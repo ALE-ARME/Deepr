@@ -426,7 +426,7 @@ fun HomeScreen(
                             }
                         }
                     } else {
-                        Row {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             if (!isPrivateMode) {
                                 val isGlobalSearchEnabled by viewModel.isGlobalSearchEnabled.collectAsStateWithLifecycle()
                                 TooltipBox(
