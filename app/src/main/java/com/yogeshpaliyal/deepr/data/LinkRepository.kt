@@ -103,6 +103,7 @@ interface LinkRepository {
 
     // Link operations
     fun getLinksAndTags(
+        globalSearch: Long,
         profileId: Long,
         searchQuery1: String,
         searchQuery2: String,

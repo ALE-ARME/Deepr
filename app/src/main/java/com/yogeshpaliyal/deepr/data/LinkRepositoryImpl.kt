@@ -193,6 +193,7 @@ class LinkRepositoryImpl(
 
     // Link operations
     override fun getLinksAndTags(
+        globalSearch: Long,
         profileId: Long,
         searchQuery1: String,
         searchQuery2: String,
@@ -208,6 +209,7 @@ class LinkRepositoryImpl(
         sortField2: String,
     ): Query<GetLinksAndTags> =
         deeprQueries.getLinksAndTags(
+            globalSearch,
             profileId,
             searchQuery1,
             searchQuery2,
