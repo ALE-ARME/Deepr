@@ -15,8 +15,6 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -41,7 +39,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -78,13 +75,11 @@ import com.yogeshpaliyal.deepr.DeeprQueries
 import com.yogeshpaliyal.deepr.GetAllTagsWithCount
 import com.yogeshpaliyal.deepr.R
 import com.yogeshpaliyal.deepr.Tags
-import com.yogeshpaliyal.deepr.ui.LocalNavigator
 import com.yogeshpaliyal.deepr.ui.TopLevelRoute
 import com.yogeshpaliyal.deepr.ui.components.ClearInputIconButton
 import com.yogeshpaliyal.deepr.viewmodel.AccountViewModel
 import compose.icons.TablerIcons
 import compose.icons.tablericons.Edit
-import compose.icons.tablericons.Eye
 import compose.icons.tablericons.Hash
 import compose.icons.tablericons.Plus
 import compose.icons.tablericons.Search
@@ -111,7 +106,6 @@ object TagSelectionScreen : TopLevelRoute {
         var isSearchVisible by remember { mutableStateOf(false) }
         val tagsWithCount by viewModel.allTagsWithCount.collectAsStateWithLifecycle()
         val context = LocalContext.current
-        val navigator = LocalNavigator.current
         val deeprQueries: DeeprQueries = koinInject()
         var isTagEditEnable by remember { mutableStateOf<GetAllTagsWithCount?>(null) }
         var isTagDeleteEnable by remember { mutableStateOf<GetAllTagsWithCount?>(null) }
@@ -181,28 +175,6 @@ object TagSelectionScreen : TopLevelRoute {
                         }
                     },
                 )
-            },
-            floatingActionButton = {
-                AnimatedVisibility(
-                    selectedTag.isNotEmpty(),
-                    enter = scaleIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeIn(),
-                    exit = scaleOut() + fadeOut(),
-                ) {
-                    ExtendedFloatingActionButton(
-                        onClick = {
-                            navigator.clearStackAndAdd(Dashboard2())
-                        },
-                        icon = {
-                            Icon(
-                                imageVector = TablerIcons.Eye,
-                                contentDescription = "View Filtered Links",
-                            )
-                        },
-                        text = { Text("View ${selectedTag.size} ${if (selectedTag.size == 1) "Tag" else "Tags"}") },
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                }
             },
         ) { paddingValues ->
             LazyColumn(
@@ -355,60 +327,6 @@ object TagSelectionScreen : TopLevelRoute {
                                         imageVector = TablerIcons.Plus,
                                         contentDescription = stringResource(R.string.create_tag),
                                     )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Selected Tags Info
-                item {
-                    AnimatedVisibility(
-                        visible = selectedTag.isNotEmpty(),
-                        enter = fadeIn() + expandVertically(),
-                        exit = fadeOut() + shrinkVertically(),
-                    ) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors =
-                                CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                ),
-                            shape = RoundedCornerShape(16.dp),
-                        ) {
-                            Row(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    Icon(
-                                        imageVector = TablerIcons.Tag,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                        modifier = Modifier.size(20.dp),
-                                    )
-                                    Text(
-                                        text =
-                                            stringResource(
-                                                R.string.selected_tags_count,
-                                                selectedTag.size,
-                                            ),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Medium,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    )
-                                }
-                                TextButton(
-                                    onClick = { viewModel.setTagFilter(null) },
-                                ) {
-                                    Text(stringResource(R.string.clear_all_filters))
                                 }
                             }
                         }
