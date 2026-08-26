@@ -82,6 +82,7 @@ import androidx.compose.material3.rememberSearchBarState
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -242,6 +243,18 @@ fun HomeScreen(
     val textFieldState = rememberTextFieldState()
 
     val scope = rememberCoroutineScope()
+
+    // Disable global search whenever the search bar collapses (back arrow, system
+    // back button or keyboard search action) so it never leaks other profiles'
+    // results into the regular per-profile browsing flow
+    LaunchedEffect(searchBarState) {
+        snapshotFlow { searchBarState.currentValue }
+            .collect { state ->
+                if (state == SearchBarValue.Collapsed) {
+                    viewModel.setGlobalSearchEnabled(false)
+                }
+            }
+    }
     val totalLinks by viewModel.countOfLinks.collectAsStateWithLifecycle()
     val favouriteLinks by viewModel.countOfFavouriteLinks.collectAsStateWithLifecycle()
     val favouriteFilter by viewModel.favouriteFilter.collectAsStateWithLifecycle()
