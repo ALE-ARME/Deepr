@@ -9,14 +9,10 @@ import android.text.style.StyleSpan
 import android.text.style.UnderlineSpan
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,8 +32,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
@@ -100,7 +94,6 @@ object TagSelectionScreen : TopLevelRoute {
     override fun Content(windowInsets: WindowInsets) {
         val viewModel: AccountViewModel = koinActivityViewModel()
         val isPrivateMode by viewModel.isPrivateMode.collectAsStateWithLifecycle()
-        val selectedTag by viewModel.selectedTagFilter.collectAsStateWithLifecycle()
         var newTagName by remember { mutableStateOf("") }
         var searchQuery by remember { mutableStateOf("") }
         var isSearchVisible by remember { mutableStateOf(false) }
@@ -455,8 +448,6 @@ object TagSelectionScreen : TopLevelRoute {
                     ) { tag ->
                         TagItem(
                             tag = tag,
-                            isSelected = selectedTag.any { it.id == tag.id },
-                            onTagClick = { viewModel.setTagFilter(Tags(tag.id, tag.name, if (isPrivateMode) 1L else 0L)) },
                             onEditClick = { isTagEditEnable = tag },
                             onDeleteClick = { isTagDeleteEnable = tag },
                         )
@@ -706,74 +697,49 @@ object TagSelectionScreen : TopLevelRoute {
 @Composable
 private fun TagItem(
     tag: GetAllTagsWithCount,
-    isSelected: Boolean,
-    onTagClick: () -> Unit,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val containerColor by animateColorAsState(
-        targetValue =
-            if (isSelected) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerLow
-            },
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-        label = "containerColor",
-    )
-
-    val contentColor by animateColorAsState(
-        targetValue =
-            if (isSelected) {
-                MaterialTheme.colorScheme.onPrimaryContainer
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            },
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-        label = "contentColor",
-    )
-
     Card(
-        onClick = onTagClick,
+        onClick = onEditClick,
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors =
             CardDefaults.cardColors(
-                containerColor = containerColor,
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
             ),
-        border =
-            if (isSelected) {
-                BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
-            } else {
-                null
-            },
     ) {
         Row(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 12.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Checkbox(
-                checked = isSelected,
-                onCheckedChange = { onTagClick() },
-                colors =
-                    CheckboxDefaults.colors(
-                        checkedColor = MaterialTheme.colorScheme.primary,
-                        checkmarkColor = MaterialTheme.colorScheme.onPrimary,
-                    ),
-            )
+            Surface(
+                color = MaterialTheme.colorScheme.primaryContainer,
+                shape = RoundedCornerShape(10.dp),
+            ) {
+                Icon(
+                    imageVector = TablerIcons.Hash,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier =
+                        Modifier
+                            .padding(8.dp)
+                            .size(20.dp),
+                )
+            }
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = tag.name,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                    color = contentColor,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Row(
@@ -781,23 +747,13 @@ private fun TagItem(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Surface(
-                        color =
-                            if (isSelected) {
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                            } else {
-                                MaterialTheme.colorScheme.surfaceVariant
-                            },
+                        color = MaterialTheme.colorScheme.surfaceVariant,
                         shape = RoundedCornerShape(6.dp),
                     ) {
                         Text(
                             text = "${tag.linkCount} ${if (tag.linkCount == 1L) "link" else "links"}",
                             style = MaterialTheme.typography.labelSmall,
-                            color =
-                                if (isSelected) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         )
                     }
@@ -809,18 +765,8 @@ private fun TagItem(
                     onClick = onEditClick,
                     colors =
                         IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor =
-                                if (isSelected) {
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                                } else {
-                                    MaterialTheme.colorScheme.surfaceVariant
-                                },
-                            contentColor =
-                                if (isSelected) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         ),
                     modifier = Modifier.size(40.dp),
                 ) {
