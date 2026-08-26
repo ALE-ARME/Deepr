@@ -49,6 +49,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.util.Locale
 
@@ -76,6 +77,7 @@ open class LocalServerRepositoryImpl(
         null
 
     private val _isRunning = MutableStateFlow(false)
+    private var isStarting = false
     private var serverSecret: String = ""
 
     /**
@@ -134,22 +136,29 @@ open class LocalServerRepositoryImpl(
      * @param port The port to listen on.
      */
     override suspend fun startServer(port: Int) {
-        if (isRunning.value) {
-            Log.d("LocalServer", "Server is already running")
+        if (isRunning.value || isStarting) {
+            Log.d("LocalServer", "Server is already running or starting")
             return
         }
+        isStarting = true
 
         serverSecret =
             java.util.UUID
                 .randomUUID()
                 .toString()
         try {
-            val ipAddress = getIpAddress()
-            if (ipAddress == null) {
-                Log.e("LocalServer", "Unable to get IP address")
-                return
+            // Clean up any stale server instance left over from a previous run
+            try {
+                server?.stop(500, 1000)
+            } catch (_: Exception) {
             }
+            server = null
 
+            // The server binds to all interfaces (0.0.0.0), so it accepts requests on any
+            // network (Wi-Fi or mobile data). The resolved IP address is only used to build
+            // the display URL; when no usable interface is found we still start the server
+            // instead of aborting, falling back to localhost for the URL.
+            val ipAddress = getIpAddress() ?: "127.0.0.1"
             server =
                 embeddedServer(CIO, host = "0.0.0.0", port = port) {
                     install(ContentNegotiation) {
@@ -1051,8 +1060,15 @@ open class LocalServerRepositoryImpl(
         } catch (e: Exception) {
             Log.e("LocalServer", "Error starting server", e)
 
+            try {
+                server?.stop(500, 1000)
+            } catch (_: Exception) {
+            }
+            server = null
             _isRunning.update { false }
             _serverUrl.update { null }
+        } finally {
+            isStarting = false
         }
     }
 
@@ -1062,13 +1078,14 @@ open class LocalServerRepositoryImpl(
     override fun stopServer() {
         try {
             server?.stop(1000, 2000)
-            server = null
-            _isRunning.update { false }
-            _serverUrl.update { null }
             Log.d("LocalServer", "Server stopped")
             analyticsManager.logEvent(com.yogeshpaliyal.deepr.analytics.AnalyticsEvents.STOP_LOCAL_SERVER)
         } catch (e: Exception) {
             Log.e("LocalServer", "Error stopping server", e)
+        } finally {
+            server = null
+            _isRunning.update { false }
+            _serverUrl.update { null }
         }
     }
 
@@ -1256,7 +1273,39 @@ open class LocalServerRepositoryImpl(
      */
     private fun getIpAddress(): String? {
         try {
-            // Try to get WiFi IP first
+            // Enumerate active network interfaces first: this reliably resolves the IP both on
+            // Wi-Fi and on mobile data, while WifiManager.connectionInfo only covers Wi-Fi and is
+            // deprecated. Site-local IPv4 addresses (192.168.x.x, 10.x.x.x, 172.16-31.x.x) are
+            // preferred, otherwise the first usable non-loopback IPv4 address wins.
+            val interfaces = NetworkInterface.getNetworkInterfaces()
+            var firstCandidate: String? = null
+            if (interfaces != null) {
+                while (interfaces.hasMoreElements()) {
+                    val networkInterface = interfaces.nextElement()
+                    try {
+                        if (!networkInterface.isUp || networkInterface.isLoopback || networkInterface.isVirtual) {
+                            continue
+                        }
+                    } catch (_: Exception) {
+                        continue
+                    }
+                    val addresses = networkInterface.inetAddresses
+                    while (addresses.hasMoreElements()) {
+                        val address = addresses.nextElement()
+                        if (address is Inet4Address && !address.isLoopbackAddress && !address.isLinkLocalAddress) {
+                            if (address.isSiteLocalAddress) {
+                                return address.hostAddress
+                            }
+                            if (firstCandidate == null) {
+                                firstCandidate = address.hostAddress
+                            }
+                        }
+                    }
+                }
+            }
+            firstCandidate?.let { return it }
+
+            // Fallback to WiFi IP
             val wifiManager =
                 context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
             wifiManager?.connectionInfo?.ipAddress?.let { ipInt ->
@@ -1269,19 +1318,6 @@ open class LocalServerRepositoryImpl(
                         ipInt shr 16 and 0xff,
                         ipInt shr 24 and 0xff,
                     )
-                }
-            }
-
-            // Fallback to network interfaces
-            val interfaces = NetworkInterface.getNetworkInterfaces()
-            while (interfaces.hasMoreElements()) {
-                val networkInterface = interfaces.nextElement()
-                val addresses = networkInterface.inetAddresses
-                while (addresses.hasMoreElements()) {
-                    val address = addresses.nextElement()
-                    if (!address.isLoopbackAddress && address.hostAddress?.contains(':') == false) {
-                        return address.hostAddress
-                    }
                 }
             }
         } catch (e: Exception) {

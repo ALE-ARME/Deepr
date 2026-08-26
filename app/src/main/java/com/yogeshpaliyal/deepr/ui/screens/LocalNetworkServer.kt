@@ -392,6 +392,90 @@ fun LocalNetworkServerScreen(
                     }
                 }
             }
+
+            // Intent Automation Card (MacroDroid / Tasker)
+            OutlinedCard(
+                modifier = Modifier.fillMaxWidth(),
+                colors =
+                    CardDefaults.outlinedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ),
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(
+                            TablerIcons.Server,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Text(
+                            text = stringResource(R.string.intent_automation),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.intent_automation_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.5f),
+                                    RoundedCornerShape(12.dp),
+                                ).padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        val onCopyItem: (String) -> Unit = { textToCopy ->
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                            copyToClipboard(context, textToCopy)
+                            showCopiedToast(context)
+                        }
+
+                        ApiEndpointItem(
+                            "INTENT",
+                            "com.yogeshpaliyal.deepr.ACTION_START_SERVER",
+                            stringResource(R.string.intent_action_start),
+                            onCopy = { onCopyItem("com.yogeshpaliyal.deepr.ACTION_START_SERVER") },
+                        )
+                        ApiEndpointItem(
+                            "INTENT",
+                            "com.yogeshpaliyal.deepr.ACTION_STOP_SERVER",
+                            stringResource(R.string.intent_action_stop),
+                            onCopy = { onCopyItem("com.yogeshpaliyal.deepr.ACTION_STOP_SERVER") },
+                        )
+                        ApiEndpointItem(
+                            "INTENT",
+                            "com.yogeshpaliyal.deepr.ACTION_TOGGLE_SERVER",
+                            stringResource(R.string.intent_action_toggle),
+                            onCopy = { onCopyItem("com.yogeshpaliyal.deepr.ACTION_TOGGLE_SERVER") },
+                        )
+                        ApiEndpointItem(
+                            "PKG",
+                            "com.yogeshpaliyal.deepr",
+                            stringResource(R.string.intent_target_package),
+                            onCopy = { onCopyItem("com.yogeshpaliyal.deepr") },
+                        )
+                        ApiEndpointItem(
+                            "CLASS",
+                            "com.yogeshpaliyal.deepr.server.LocalServerReceiver",
+                            stringResource(R.string.intent_target_class),
+                            onCopy = { onCopyItem("com.yogeshpaliyal.deepr.server.LocalServerReceiver") },
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -666,9 +750,19 @@ private fun ApiEndpointItem(
     method: String,
     path: String,
     description: String,
+    onCopy: (() -> Unit)? = null,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .then(
+                    if (onCopy != null) {
+                        Modifier.clickable { onCopy() }
+                    } else {
+                        Modifier
+                    },
+                ),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Top,
     ) {
@@ -679,6 +773,9 @@ private fun ApiEndpointItem(
                 when (method) {
                     "GET" -> MaterialTheme.colorScheme.primary
                     "POST" -> MaterialTheme.colorScheme.tertiary
+                    "INTENT" -> MaterialTheme.colorScheme.primary
+                    "PKG" -> MaterialTheme.colorScheme.secondary
+                    "CLASS" -> MaterialTheme.colorScheme.tertiary
                     else -> MaterialTheme.colorScheme.secondary
                 },
             fontWeight = FontWeight.Bold,
@@ -688,11 +785,14 @@ private fun ApiEndpointItem(
                         when (method) {
                             "GET" -> MaterialTheme.colorScheme.primaryContainer
                             "POST" -> MaterialTheme.colorScheme.tertiaryContainer
+                            "INTENT" -> MaterialTheme.colorScheme.primaryContainer
+                            "PKG" -> MaterialTheme.colorScheme.secondaryContainer
+                            "CLASS" -> MaterialTheme.colorScheme.tertiaryContainer
                             else -> MaterialTheme.colorScheme.secondaryContainer
                         },
                         RoundedCornerShape(6.dp),
                     ).padding(horizontal = 8.dp, vertical = 4.dp)
-                    .width(45.dp),
+                    .width(55.dp),
             textAlign = TextAlign.Center,
         )
         Column(modifier = Modifier.weight(1f)) {

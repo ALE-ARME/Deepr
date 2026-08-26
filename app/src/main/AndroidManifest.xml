@@ -78,6 +78,17 @@
                 android:value="Local network server for managing deeplinks" />
         </service>
 
+        <receiver
+            android:name=".server.LocalServerReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.yogeshpaliyal.deepr.ACTION_START_SERVER" />
+                <action android:name="com.yogeshpaliyal.deepr.ACTION_STOP_SERVER" />
+                <action android:name="com.yogeshpaliyal.deepr.ACTION_TOGGLE_SERVER" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

@@ -246,6 +246,13 @@
     <string name="api_delete_profile">Delete a profile by ID</string>
     <string name="api_get_link_info">Get metadata for a URL</string>
     <string name="api_get_server_info">Get server information and API documentation</string>
+    <string name="intent_automation">Intent Automation (MacroDroid / Tasker)</string>
+    <string name="intent_automation_description">Automatically start, stop, or toggle the local server using Broadcast Intents from external apps like MacroDroid, Tasker, or ADB commands. Tap an item to copy it.</string>
+    <string name="intent_action_start">Start Server Action</string>
+    <string name="intent_action_stop">Stop Server Action</string>
+    <string name="intent_action_toggle">Toggle Server Action</string>
+    <string name="intent_target_package">Package Name</string>
+    <string name="intent_target_class">Receiver Class</string>
     <string name="local_server_notification_channel_name">Local Server</string>
     <string name="local_server_notification_channel_description">Notifications for local server status</string>
     <string name="local_server_notification_text">Server URL: %s</string>
