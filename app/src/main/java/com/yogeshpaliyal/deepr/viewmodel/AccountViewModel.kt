@@ -435,10 +435,12 @@ class AccountViewModel(
             selectedTagFilter,
             favouriteFilter,
             selectedProfileId,
-            globalSearchEnabled,
-            isPrivateMode,
-        ) { query, sorting, tags, favourite, profileId, globalSearch, privateMode ->
-            listOf(query, sorting, tags, favourite, profileId, globalSearch, privateMode)
+        ) { query, sorting, tags, favourite, profileId ->
+            listOf<Any>(query, sorting, tags, favourite, profileId)
+        }.combine(globalSearchEnabled) { filters, globalSearchRequested ->
+            filters + globalSearchRequested
+        }.combine(isPrivateMode) { filters, privateMode ->
+            filters + privateMode
         }.flatMapLatest { combined ->
             val query = combined[0] as String
             val sorting = (combined[1] as String).split("_")
