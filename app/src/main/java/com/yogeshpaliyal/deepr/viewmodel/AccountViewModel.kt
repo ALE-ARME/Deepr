@@ -87,6 +87,7 @@ class AccountViewModel(
     private val reorderMutex = Mutex()
     private val reviewManager: com.yogeshpaliyal.deepr.review.ReviewManager = get()
     private val searchQuery = MutableStateFlow("")
+    private val globalSearchEnabled = MutableStateFlow(false)
 
     private val _showProfilesGrid = MutableStateFlow(false)
     val showProfilesGrid: StateFlow<Boolean> = _showProfilesGrid.asStateFlow()
@@ -97,6 +98,7 @@ class AccountViewModel(
 
     private val _isPrivateMode = MutableStateFlow(false)
     val isPrivateMode: StateFlow<Boolean> = _isPrivateMode.asStateFlow()
+    val isGlobalSearchEnabled: StateFlow<Boolean> = globalSearchEnabled.asStateFlow()
 
     fun setPrivateMode(enabled: Boolean) {
         _isPrivateMode.value = enabled
@@ -434,13 +436,22 @@ class AccountViewModel(
             favouriteFilter,
             selectedProfileId,
         ) { query, sorting, tags, favourite, profileId ->
-            listOf(query, sorting, tags, favourite, profileId)
+            listOf<Any>(query, sorting, tags, favourite, profileId)
+        }.combine(globalSearchEnabled) { filters, globalSearchRequested ->
+            filters + globalSearchRequested
+        }.combine(isPrivateMode) { filters, privateMode ->
+            filters + privateMode
         }.flatMapLatest { combined ->
             val query = combined[0] as String
             val sorting = (combined[1] as String).split("_")
             val tags = combined[2] as List<Tags>
             val favourite = combined[3] as Int
             val profileId = combined[4] as Long
+            val globalSearchRequested = combined[5] as Boolean
+            val privateMode = combined[6] as Boolean
+            // Global search spans all non-private profiles; never apply it in private mode
+            // so that private mode keeps showing only the selected profile's links
+            val globalSearch = if (privateMode || !globalSearchRequested) 0L else 1L
             val sortField = sorting.getOrNull(0) ?: "createdAt"
             val sortType = sorting.getOrNull(1) ?: "DESC"
 
@@ -451,6 +462,7 @@ class AccountViewModel(
 
             linkRepository
                 .getLinksAndTags(
+                    globalSearch,
                     profileId,
                     query,
                     query,
@@ -467,6 +479,10 @@ class AccountViewModel(
                 ).asFlow()
                 .mapToList(viewModelScope.coroutineContext)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    fun setGlobalSearchEnabled(enabled: Boolean) {
+        globalSearchEnabled.value = enabled
+    }
 
     fun search(query: String) {
         searchQuery.update { query }

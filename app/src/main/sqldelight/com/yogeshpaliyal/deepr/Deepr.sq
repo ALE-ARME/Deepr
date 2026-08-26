@@ -84,8 +84,16 @@ FROM
       ) AS DOL_Max ON Deepr.id = DOL_Max.deeplinkId
   LEFT JOIN LinkTags ON Deepr.id = LinkTags.linkId
   LEFT JOIN Tags ON LinkTags.tagId = Tags.id
+  LEFT JOIN Profile ON Deepr.profileId = Profile.id
 WHERE
-  Deepr.profileId = ?
+  (
+    (
+      :globalSearch = 0 AND Deepr.profileId = ?
+    )
+    OR (
+      :globalSearch = 1 AND Profile.isPrivate = 0
+    )
+  )
   AND (Deepr.link LIKE '%' || ? || '%' OR Deepr.name LIKE '%' || ? || '%' OR Deepr.notes LIKE '%' || ? || '%' OR EXISTS (SELECT 1 FROM LinkTags, Tags WHERE LinkTags.tagId = Tags.id AND LinkTags.linkId = Deepr.id AND Tags.name LIKE '%' || ? || '%'))
   AND (
     ? = -1 OR Deepr.isFavourite = ?

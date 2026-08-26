@@ -200,6 +200,8 @@
     <string name="hide_link_url_description">Nascondi l\'indirizzo URL del link negli elementi salvati</string>
     <string name="hide_date_of_creation">Nascondi data di creazione</string>
     <string name="hide_date_of_creation_description">Nascondi la data di creazione negli elementi salvati</string>
+    <string name="global_search">Ricerca globale</string>
+    <string name="global_search_active">Ricerca globale attiva su tutti i profili esclusi quelli privati</string>
     <string name="intent_automation">Automazione tramite Intent (MacroDroid / Tasker)</string>
     <string name="intent_automation_description">Avvia, arresta o alterna automaticamente il server locale inviando Broadcast Intent da app esterne come MacroDroid, Tasker o tramite comandi ADB. Tocca una voce per copiarla.</string>
     <string name="intent_action_start">Action Avvio Server</string>

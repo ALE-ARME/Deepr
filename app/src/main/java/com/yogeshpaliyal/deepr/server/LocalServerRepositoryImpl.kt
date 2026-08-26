@@ -365,6 +365,7 @@ open class LocalServerRepositoryImpl(
                                 val links =
                                     deeprQueries
                                         .getLinksAndTags(
+                                            0L,
                                             profileId,
                                             "",
                                             "",
@@ -485,6 +486,7 @@ open class LocalServerRepositoryImpl(
                                 val existingLink =
                                     deeprQueries
                                         .getLinksAndTags(
+                                            0L,
                                             request.profileId,
                                             "",
                                             "",

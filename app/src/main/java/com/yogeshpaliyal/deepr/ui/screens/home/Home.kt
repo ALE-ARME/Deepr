@@ -61,6 +61,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemColors
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -157,6 +158,7 @@ import compose.icons.tablericons.Share
 import compose.icons.tablericons.Tag
 import compose.icons.tablericons.Trash
 import compose.icons.tablericons.User
+import compose.icons.tablericons.World
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
@@ -424,12 +426,59 @@ fun HomeScreen(
                             }
                         }
                     } else {
-                        if (textFieldState.text.isNotEmpty()) {
-                            ClearInputIconButton(
-                                onClick = {
-                                    textFieldState.clearText()
-                                },
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (!isPrivateMode) {
+                                val isGlobalSearchEnabled by viewModel.isGlobalSearchEnabled.collectAsStateWithLifecycle()
+                                TooltipBox(
+                                    positionProvider =
+                                        TooltipDefaults.rememberTooltipPositionProvider(
+                                            TooltipAnchorPosition.Below,
+                                        ),
+                                    tooltip = {
+                                        PlainTooltip {
+                                            Text(
+                                                stringResource(
+                                                    if (isGlobalSearchEnabled) {
+                                                        R.string.global_search_active
+                                                    } else {
+                                                        R.string.global_search
+                                                    },
+                                                ),
+                                            )
+                                        }
+                                    },
+                                    state = rememberTooltipState(),
+                                ) {
+                                    IconButton(
+                                        onClick = { viewModel.setGlobalSearchEnabled(!isGlobalSearchEnabled) },
+                                    ) {
+                                        Icon(
+                                            TablerIcons.World,
+                                            contentDescription = stringResource(R.string.global_search),
+                                            tint =
+                                                if (isGlobalSearchEnabled) {
+                                                    MaterialTheme.colorScheme.primary
+                                                } else {
+                                                    LocalContentColor.current
+                                                },
+                                        )
+                                    }
+                                }
+                            }
+                            if (textFieldState.text.isNotEmpty()) {
+                                // 48dp slot so the clear icon sits exactly where the
+                                // sort button sits when the search bar is collapsed
+                                Box(
+                                    modifier = Modifier.size(48.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    ClearInputIconButton(
+                                        onClick = {
+                                            textFieldState.clearText()
+                                        },
+                                    )
+                                }
+                            }
                         }
                     }
                 },
