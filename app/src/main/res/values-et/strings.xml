@@ -187,7 +187,6 @@
     <string name="version_format">Versioon %s</string>
     <string name="export_deeplinks_description">Ekspordi lingid CSV-faili</string>
     <string name="interval_6_hours">Iga 6 tunni järel</string>
-    <string name="clear_all_filters">Tühjenda kõik filtrid</string>
     <string name="view_contributors">Vaata kaasautoreid</string>
     <string name="reset_opened_count">Nulli avamiskordade arv</string>
     <string name="sort_by_opened_ascending">Järjesta viimase avamise alusel kasvavalt</string>

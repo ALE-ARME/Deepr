@@ -97,7 +97,6 @@
     <string name="tag_deleted_successfully">Tag eliminato con successo</string>
     <string name="edit_tag_description">Modifica Tag</string>
     <string name="delete_tag_description">Elimina Tag</string>
-    <string name="clear_all_filters">Pulisci Tutti i Filtri</string>
     <string name="selected_tags_count">%d tag selezionati</string>
     <string name="filtered_tags_count">%1$d di %2$d</string>
 
