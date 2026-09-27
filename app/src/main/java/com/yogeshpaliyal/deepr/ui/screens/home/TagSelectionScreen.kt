@@ -179,7 +179,7 @@ object TagSelectionScreen : TopLevelRoute {
                     androidx.compose.foundation.layout.PaddingValues(
                         start = 16.dp,
                         end = 16.dp,
-                        bottom = 100.dp,
+                        bottom = 24.dp,
                     ),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
