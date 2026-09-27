@@ -273,7 +273,8 @@ object TagSelectionScreen : TopLevelRoute {
                                                     it.name.equals(
                                                         trimmedTagName,
                                                         ignoreCase = true,
-                                                    ) && it.profileId == newTagScopeProfileId
+                                                    ) &&
+                                                        it.profileId == newTagScopeProfileId
                                                 }
 
                                             if (existingTag != null) {

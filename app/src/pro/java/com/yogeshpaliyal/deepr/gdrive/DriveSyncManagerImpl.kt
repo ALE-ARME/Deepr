@@ -132,7 +132,8 @@ class DriveSyncManagerImpl(
                                 val tagId =
                                     deeprQueries
                                         .getTagByName(tagName, 0L, GLOBAL_TAG_PROFILE_ID)
-                                        .executeAsOneOrNull()?.id
+                                        .executeAsOneOrNull()
+                                        ?.id
                                 if (tagId != null) {
                                     deeprQueries.addTagToLink(linkId, tagId)
                                 }

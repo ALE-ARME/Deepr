@@ -930,9 +930,11 @@ fun AddLinkScreen(
                                 if (created != null) {
                                     selectedTags.add(created)
                                     availableTags =
-                                        (availableTags.filterNot {
-                                            it.name.equals(created.name, ignoreCase = true)
-                                        } + created).sortedBy { it.name }
+                                        (
+                                            availableTags.filterNot {
+                                                it.name.equals(created.name, ignoreCase = true)
+                                            } + created
+                                        ).sortedBy { it.name }
                                 } else {
                                     // Fall back to the id 0 placeholder
                                     selectedTags.add(

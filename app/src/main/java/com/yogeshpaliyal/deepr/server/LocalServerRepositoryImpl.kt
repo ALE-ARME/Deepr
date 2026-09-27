@@ -1066,7 +1066,9 @@ open class LocalServerRepositoryImpl(
                                                 EndpointInfo(
                                                     method = "GET",
                                                     path = "/api/tags",
-                                                    description = "Get the global tags plus those bound to a profile. Optional query param: profileId (Long).",
+                                                    description =
+                                                        "Get the global tags plus those bound to a profile. " +
+                                                            "Optional query param: profileId (Long).",
                                                 ),
                                                 EndpointInfo(
                                                     method = "POST",
