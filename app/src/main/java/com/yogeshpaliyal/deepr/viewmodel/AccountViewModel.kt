@@ -21,6 +21,7 @@ import com.yogeshpaliyal.deepr.data.ProfilePriorityUpdate
 import com.yogeshpaliyal.deepr.preference.AppPreferenceDataStore
 import com.yogeshpaliyal.deepr.sync.SyncRepository
 import com.yogeshpaliyal.deepr.ui.screens.home.ViewType
+import com.yogeshpaliyal.deepr.util.GLOBAL_TAG_PROFILE_ID
 import com.yogeshpaliyal.deepr.util.RequestResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -205,15 +206,27 @@ class AccountViewModel(
         }
     }
 
-    // State for tags - now scoped to current profile and private mode
+    // State for tags - global tags plus the ones bound to the current profile,
+    // narrowed down by the private mode
     @OptIn(ExperimentalCoroutinesApi::class)
     val allTags: StateFlow<List<Tags>> =
-        combine(selectedProfileId, isPrivateMode) { _, privateMode ->
+        combine(selectedProfileId, isPrivateMode) { profileId, privateMode ->
             val isPriv = if (privateMode) 1L else 0L
-            linkRepository.getAllTags(isPriv)
+            linkRepository.getAllTags(isPriv, profileId)
         }.flatMapLatest { query ->
             query.asFlow().mapToList(viewModelScope.coroutineContext)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), listOf())
+
+    /**
+     * Returns the tags available for the given profile, that is the global ones
+     * plus the ones explicitly bound to it.
+     */
+    suspend fun getAllTagsForProfile(profileId: Long): List<Tags> {
+        val isPriv = if (_isPrivateMode.value) 1L else 0L
+        return withContext(Dispatchers.IO) {
+            linkRepository.getAllTags(isPriv, profileId).executeAsList()
+        }
+    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val allTagsWithCount: StateFlow<List<GetAllTagsWithCount>> =
@@ -347,6 +360,22 @@ class AccountViewModel(
         _selectedTagFilter.update { emptyList() }
     }
 
+    /**
+     * Toggles the filter for a tag identified by its id, so that a global tag and
+     * a profile bound tag sharing the same name stay independent.
+     */
+    fun setTagFilterById(
+        tagId: Long,
+        tagName: String,
+    ) {
+        val isPriv = if (_isPrivateMode.value) 1L else 0L
+        val profileId =
+            allTagsWithCount.value
+                .firstOrNull { it.id == tagId }
+                ?.profileId ?: GLOBAL_TAG_PROFILE_ID
+        setTagFilter(Tags(tagId, tagName, isPriv, profileId))
+    }
+
     // Set favourite filter
     fun setFavouriteFilter(filter: Int) {
         _favouriteFilter.update { filter }
@@ -366,11 +395,39 @@ class AccountViewModel(
         }
     }
 
-    // Insert a new tag
-    fun insertTag(tagName: String) {
+    /**
+     * Inserts a new tag.
+     * @param tagName The name of the tag.
+     * @param profileId The profile the tag is bound to, [GLOBAL_TAG_PROFILE_ID]
+     * to make it available to every profile.
+     */
+    fun insertTag(
+        tagName: String,
+        profileId: Long = GLOBAL_TAG_PROFILE_ID,
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
             val isPriv = if (_isPrivateMode.value) 1L else 0L
-            linkRepository.insertTag(tagName, isPrivate = isPriv)
+            linkRepository.insertTag(tagName, isPrivate = isPriv, profileId = profileId)
+        }
+    }
+
+    /**
+     * Inserts a tag and returns the stored row.
+     *
+     * Useful when the list of available tags is scoped to a profile other than
+     * the selected one, so that the caller can refresh it deterministically
+     * instead of waiting for the observed query to emit.
+     *
+     * @return The stored tag, or null when it could not be read back.
+     */
+    suspend fun insertTagAndGet(
+        tagName: String,
+        profileId: Long = GLOBAL_TAG_PROFILE_ID,
+    ): Tags? {
+        val isPriv = if (_isPrivateMode.value) 1L else 0L
+        return withContext(Dispatchers.IO) {
+            linkRepository.insertTag(tagName, isPrivate = isPriv, profileId = profileId)
+            linkRepository.getTagByName(tagName, isPrivate = isPriv, profileId = profileId)
         }
     }
 
@@ -384,18 +441,22 @@ class AccountViewModel(
         }
     }
 
-    // Add tag by name (creates tag if it doesn't exist)
+    /**
+     * Adds a tag by name, creating it when it does not exist yet.
+     * @param profileId The scope the tag is created in when missing.
+     */
     private suspend fun addTagToLinkByName(
         linkId: Long,
         tagName: String,
+        profileId: Long,
     ) {
         withContext(Dispatchers.IO) {
             val isPriv = if (_isPrivateMode.value) 1L else 0L
             // Create the tag if it doesn't exist
-            linkRepository.insertTag(tagName, isPrivate = isPriv)
+            linkRepository.insertTag(tagName, isPrivate = isPriv, profileId = profileId)
 
             // Get the tag ID
-            val tag = linkRepository.getTagByName(tagName, isPrivate = isPriv)
+            val tag = linkRepository.getTagByName(tagName, isPrivate = isPriv, profileId = profileId)
 
             if (tag != null) {
                 // Add the tag to the link
@@ -404,13 +465,22 @@ class AccountViewModel(
         }
     }
 
+    /**
+     * Toggles the tag identified by [tagName] as a filter.
+     *
+     * The name is resolved against the tags currently available for the active
+     * profile so that global and profile bound tags sharing a name can be
+     * filtered independently.
+     */
     fun setSelectedTagByName(tagName: String) {
         viewModelScope.launch(Dispatchers.IO) {
             val isPriv = if (_isPrivateMode.value) 1L else 0L
-            val tag = linkRepository.getTagByName(tagName, isPrivate = isPriv)
-            if (tag != null) {
-                setTagFilter(tag)
-            }
+            val available = allTagsWithCount.value
+            val match =
+                available.firstOrNull {
+                    it.name == tagName && it.profileId == GLOBAL_TAG_PROFILE_ID
+                } ?: available.firstOrNull { it.name == tagName } ?: return@launch
+            setTagFilter(Tags(match.id, tagName, isPriv, match.profileId))
         }
     }
 
@@ -542,8 +612,8 @@ class AccountViewModel(
                     // Existing tag
                     addTagToLink(linkId, tag.id)
                 } else {
-                    // New tag
-                    addTagToLinkByName(linkId, tag.name)
+                    // New tag, created in the scope requested by the user
+                    addTagToLinkByName(linkId, tag.name, tag.profileId)
                 }
             }
         }
@@ -580,9 +650,12 @@ class AccountViewModel(
         }
     }
 
+    /**
+     * Renames a tag and/or moves it to another scope.
+     */
     suspend fun updateTag(tag: Tags) {
         withContext(Dispatchers.IO) {
-            linkRepository.updateTag(tag.name, tag.id)
+            linkRepository.updateTag(tag.name, tag.profileId, tag.id)
         }
     }
 

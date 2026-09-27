@@ -58,8 +58,19 @@ interface LinkRepository {
     fun countProfiles(): Query<Long>
 
     // Tag operations
-    fun getAllTags(isPrivate: Long): Query<Tags>
 
+    /**
+     * Returns the global tags plus the ones bound to the given profile.
+     */
+    fun getAllTags(
+        isPrivate: Long,
+        profileId: Long,
+    ): Query<Tags>
+
+    /**
+     * Returns the global tags plus the ones bound to the given profile, with
+     * the amount of links of the given profile using each of them.
+     */
     fun getAllTagsWithCount(
         profileId: Long,
         isPrivate: Long,
@@ -68,21 +79,30 @@ interface LinkRepository {
     suspend fun getTagByName(
         tagName: String,
         isPrivate: Long,
+        profileId: Long,
     ): Tags?
 
     suspend fun insertTag(
         tagName: String,
         isPrivate: Long,
+        profileId: Long,
     )
 
     suspend fun updateTag(
         name: String,
+        profileId: Long,
         id: Long,
     )
 
     suspend fun deleteTag(id: Long)
 
     suspend fun deleteTagRelations(id: Long)
+
+    /**
+     * Deletes every tag bound to the given profile. Global tags (profileId = 0)
+     * are left untouched.
+     */
+    suspend fun deleteTagsForProfile(profileId: Long)
 
     // Link-Tag operations
     suspend fun addTagToLink(

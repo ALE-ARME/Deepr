@@ -25,6 +25,7 @@
     <string name="add">Add</string>
     <string name="fetch_name_from_link">Fetch meta from link</string>
     <string name="create_tag">Create Tag</string>
+    <string name="create_tag_description">Create a tag, either global or bound to a single profile</string>
     <string name="new_tag">New tag (Optional)</string>
     <string name="add_tag">Add tag</string>
     <string name="no_links_saved_yet">No links saved yet</string>
@@ -105,6 +106,11 @@
     <string name="edit_tag_description">Edit Tag</string>
     <string name="delete_tag_description">Delete Tag</string>
     <string name="selected_tags_count">%d tags selected</string>
+    <string name="tag_scope">Tag Scope</string>
+    <string name="tag_scope_global">Global</string>
+    <string name="tag_scope_profile">Profile: %1$s</string>
+    <string name="tag_badge_global">Global</string>
+    <string name="tag_badge_profile">%1$s only</string>
 
     <plurals name="tag_used_by_links">
         <item quantity="one">This tag is used by %1$d link. Deleting it will remove the tag from this link.</item>

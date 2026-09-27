@@ -26,6 +26,7 @@
     <string name="clipboard_link_detected">Link rilevato negli appunti</string>
     <string name="fetch_name_from_link">Recupera metadati dal link</string>
     <string name="create_tag">Crea Tag</string>
+    <string name="create_tag_description">Crea un tag, globale oppure legato a un singolo profilo</string>
     <string name="new_tag">Nuova etichetta (Facoltativo)</string>
     <string name="add_tag">Aggiungi etichetta</string>
     <string name="no_links_saved_yet">Nessun link ancora salvato</string>
@@ -98,6 +99,11 @@
     <string name="edit_tag_description">Modifica Tag</string>
     <string name="delete_tag_description">Elimina Tag</string>
     <string name="selected_tags_count">%d tag selezionati</string>
+    <string name="tag_scope">Ambito del Tag</string>
+    <string name="tag_scope_global">Globale</string>
+    <string name="tag_scope_profile">Profilo: %1$s</string>
+    <string name="tag_badge_global">Globale</string>
+    <string name="tag_badge_profile">Solo %1$s</string>
     <string name="filtered_tags_count">%1$d di %2$d</string>
 
     <!-- Settings Screen -->

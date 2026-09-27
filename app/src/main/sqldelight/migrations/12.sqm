@@ -1,0 +1,20 @@
+-- Migration 12: make tags optionally profile specific.
+-- profileId = 0 marks a tag as global (visible from every profile), a value
+-- greater than 0 binds the tag to the profile with that id. Existing tags keep
+-- the previous behaviour and become global.
+CREATE TABLE Tags_new (
+id INTEGER PRIMARY KEY NOT NULL,
+name TEXT NOT NULL,
+isPrivate INTEGER NOT NULL DEFAULT 0,
+profileId INTEGER NOT NULL DEFAULT 0,
+UNIQUE(name, isPrivate, profileId)
+);
+
+INSERT INTO Tags_new(id, name, isPrivate, profileId)
+SELECT id, name, isPrivate, 0 FROM Tags;
+
+DROP TABLE Tags;
+ALTER TABLE Tags_new RENAME TO Tags;
+
+CREATE INDEX IF NOT EXISTS idx_tags_profileId
+ON Tags(profileId);

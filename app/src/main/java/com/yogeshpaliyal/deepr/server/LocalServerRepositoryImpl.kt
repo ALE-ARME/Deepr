@@ -11,6 +11,7 @@ import com.yogeshpaliyal.deepr.Tags
 import com.yogeshpaliyal.deepr.analytics.AnalyticsManager
 import com.yogeshpaliyal.deepr.data.NetworkRepository
 import com.yogeshpaliyal.deepr.preference.AppPreferenceDataStore
+import com.yogeshpaliyal.deepr.util.GLOBAL_TAG_PROFILE_ID
 import com.yogeshpaliyal.deepr.util.LanguageUtil
 import com.yogeshpaliyal.deepr.viewmodel.AccountViewModel
 import io.ktor.client.HttpClient
@@ -326,7 +327,11 @@ open class LocalServerRepositoryImpl(
                                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid profile ID"))
                                     return@delete
                                 }
-                                deeprQueries.deleteProfile(id)
+                                deeprQueries.transaction {
+                                    // Tags bound to this profile go away with it, global ones stay
+                                    deeprQueries.deleteTagsForProfile(id)
+                                    deeprQueries.deleteProfile(id)
+                                }
                                 call.respond(HttpStatusCode.OK, SuccessResponse("Profile deleted successfully"))
                             } catch (e: Exception) {
                                 Log.e("LocalServer", "Error deleting profile", e)
@@ -560,8 +565,12 @@ open class LocalServerRepositoryImpl(
                                     )
                                     deeprQueries.deleteLinkRelations(id)
                                     request.tags.forEach { tagData ->
-                                        deeprQueries.insertTag(tagData.name, isPrivate)
-                                        val tag = deeprQueries.getTagByName(tagData.name, isPrivate).executeAsOne()
+                                        val tagProfileId = tagData.resolveProfileId()
+                                        deeprQueries.insertTag(tagData.name, isPrivate, tagProfileId)
+                                        val tag =
+                                            deeprQueries
+                                                .getTagByName(tagData.name, isPrivate, tagProfileId)
+                                                .executeAsOne()
                                         deeprQueries.addTagToLink(linkId = id, tagId = tag.id)
                                     }
                                 }
@@ -644,6 +653,8 @@ open class LocalServerRepositoryImpl(
                                             id = tag.id,
                                             name = tag.name,
                                             count = tag.linkCount.toInt(),
+                                            profileId = tag.profileId,
+                                            isGlobal = tag.profileId == GLOBAL_TAG_PROFILE_ID,
                                         )
                                     }
                                 call.respond(HttpStatusCode.OK, response)
@@ -652,6 +663,56 @@ open class LocalServerRepositoryImpl(
                                 call.respond(
                                     HttpStatusCode.InternalServerError,
                                     ErrorResponse("Error getting tags: ${e.message}"),
+                                )
+                            }
+                        }
+
+                        post("/api/tags") {
+                            try {
+                                val request = call.receive<AddTagRequest>()
+                                val name = request.name.trim()
+                                if (name.isBlank()) {
+                                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("Tag name is required"))
+                                    return@post
+                                }
+
+                                val isPrivateMode = accountViewModel.isPrivateMode.value
+                                val isPrivate = if (isPrivateMode) 1L else 0L
+
+                                // A null or zero profileId creates a global tag, available to every profile
+                                val tagProfileId = request.profileId?.takeIf { it > 0 } ?: GLOBAL_TAG_PROFILE_ID
+                                if (tagProfileId != GLOBAL_TAG_PROFILE_ID) {
+                                    val profile = deeprQueries.getProfileById(tagProfileId).executeAsOneOrNull()
+                                    if (profile == null) {
+                                        call.respond(
+                                            HttpStatusCode.BadRequest,
+                                            ErrorResponse("Profile not found: $tagProfileId"),
+                                        )
+                                        return@post
+                                    }
+                                    if (profile.isPrivate == 1L && !isPrivateMode) {
+                                        call.respond(HttpStatusCode.Forbidden, ErrorResponse("Private mode is locked."))
+                                        return@post
+                                    }
+                                }
+
+                                deeprQueries.insertTag(name, isPrivate, tagProfileId)
+                                val tag = deeprQueries.getTagByName(name, isPrivate, tagProfileId).executeAsOne()
+                                call.respond(
+                                    HttpStatusCode.Created,
+                                    TagResponse(
+                                        id = tag.id,
+                                        name = tag.name,
+                                        count = 0,
+                                        profileId = tag.profileId,
+                                        isGlobal = tag.profileId == GLOBAL_TAG_PROFILE_ID,
+                                    ),
+                                )
+                            } catch (e: Exception) {
+                                Log.e("LocalServer", "Error creating tag", e)
+                                call.respond(
+                                    HttpStatusCode.InternalServerError,
+                                    ErrorResponse("Error creating tag: ${e.message}"),
                                 )
                             }
                         }
@@ -902,6 +963,7 @@ open class LocalServerRepositoryImpl(
                                             id = it.id,
                                             name = it.name,
                                             isPrivate = it.isPrivate,
+                                            profileId = it.profileId,
                                         )
                                     }
 
@@ -950,7 +1012,7 @@ open class LocalServerRepositoryImpl(
                                                           "link": "https://example.com",
                                                           "name": "Example Name",
                                                           "notes": "Optional notes",
-                                                          "tags": [{"id": 0, "name": "tag"}],
+                                                          "tags": [{"id": 0, "name": "tag", "profileId": 1}],
                                                           "profileId": 1,
                                                           "profileName": "Optional Profile (creates if missing)",
                                                           "isFavourite": false
@@ -967,7 +1029,7 @@ open class LocalServerRepositoryImpl(
                                                           "link": "https://example.com",
                                                           "name": "Updated Name",
                                                           "notes": "Updated notes",
-                                                          "tags": [{"id": 1, "name": "tag"}],
+                                                          "tags": [{"id": 1, "name": "tag", "profileId": 1}],
                                                           "profileId": 1,
                                                           "profileName": "Optional Profile (creates if missing)",
                                                           "isFavourite": true
@@ -1004,7 +1066,19 @@ open class LocalServerRepositoryImpl(
                                                 EndpointInfo(
                                                     method = "GET",
                                                     path = "/api/tags",
-                                                    description = "Get all available tags. Optional query param: profileId (Long).",
+                                                    description = "Get the global tags plus those bound to a profile. Optional query param: profileId (Long).",
+                                                ),
+                                                EndpointInfo(
+                                                    method = "POST",
+                                                    path = "/api/tags",
+                                                    description = "Create a new tag. Omit profileId, or send 0, to create a global tag.",
+                                                    bodyFormat =
+                                                        """
+                                                        {
+                                                          "name": "tag name",
+                                                          "profileId": 1
+                                                        }
+                                                        """.trimIndent(),
                                                 ),
                                                 EndpointInfo(
                                                     method = "DELETE",
@@ -1166,12 +1240,14 @@ open class LocalServerRepositoryImpl(
 
             val tagIdMap = mutableMapOf<Long, Long>()
             pkg.tags.forEach { tag ->
-                val existing = deeprQueries.getTagByName(tag.name, tag.isPrivate).executeAsOneOrNull()
+                // The exported profile ids belong to the source device, remap them
+                val tagProfileId = profileIdMap[tag.profileId] ?: GLOBAL_TAG_PROFILE_ID
+                val existing = deeprQueries.getTagByName(tag.name, tag.isPrivate, tagProfileId).executeAsOneOrNull()
                 if (existing != null) {
                     tagIdMap[tag.id] = existing.id
                 } else {
-                    deeprQueries.insertTag(tag.name, tag.isPrivate)
-                    val newTag = deeprQueries.getTagByName(tag.name, tag.isPrivate).executeAsOneOrNull()
+                    deeprQueries.insertTag(tag.name, tag.isPrivate, tagProfileId)
+                    val newTag = deeprQueries.getTagByName(tag.name, tag.isPrivate, tagProfileId).executeAsOneOrNull()
                     if (newTag != null) {
                         tagIdMap[tag.id] = newTag.id
                     }
@@ -1232,8 +1308,11 @@ open class LocalServerRepositoryImpl(
                     val insertedId = deeprQueries.lastInsertRowId().executeAsOne()
 
                     deeplink.tags.forEach { tagName ->
-                        deeprQueries.insertTag(name = tagName, isPrivate = 0L)
-                        val tag = deeprQueries.getTagByName(tagName, 0L).executeAsOne()
+                        deeprQueries.insertTag(name = tagName, isPrivate = 0L, profileId = GLOBAL_TAG_PROFILE_ID)
+                        val tag =
+                            deeprQueries
+                                .getTagByName(tagName, 0L, GLOBAL_TAG_PROFILE_ID)
+                                .executeAsOne()
                         deeprQueries.addTagToLink(
                             linkId = insertedId,
                             tagId = tag.id,
@@ -1352,12 +1431,35 @@ data class LinkResponse(
 data class TagData(
     val id: Long,
     val name: String,
+    /**
+     * Profile the tag is bound to. When omitted, `null` or `0` the tag is
+     * global and therefore available to every profile.
+     */
+    val profileId: Long? = null,
 ) {
+    /**
+     * Resolves the requested scope into a valid [Tags.profileId].
+     */
+    fun resolveProfileId(): Long = profileId?.takeIf { it > 0 } ?: GLOBAL_TAG_PROFILE_ID
+
     /**
      * Converts this [TagData] to a [Tags] database object.
      */
-    fun toDbTag() = Tags(id, name, 0L)
+    fun toDbTag() = Tags(id, name, 0L, resolveProfileId())
 }
+
+/**
+ * Data class representing a request to create a new tag.
+ */
+@Serializable
+data class AddTagRequest(
+    val name: String,
+    /**
+     * Optional profile the tag is bound to. Omit it, or send `0`, to create a
+     * global tag available to every profile.
+     */
+    val profileId: Long? = null,
+)
 
 /**
  * Data class representing a request to add a new link.
@@ -1426,6 +1528,11 @@ data class TagResponse(
     val id: Long,
     val name: String,
     val count: Int,
+    /**
+     * `0` when the tag is global, otherwise the id of the profile it is bound to.
+     */
+    val profileId: Long = 0L,
+    val isGlobal: Boolean = true,
 )
 
 /**
@@ -1476,6 +1583,10 @@ data class TagExportData(
     val id: Long,
     val name: String,
     val isPrivate: Long,
+    /**
+     * `0` when the tag is global, otherwise the id of the profile it is bound to.
+     */
+    val profileId: Long = 0L,
 )
 
 @Serializable

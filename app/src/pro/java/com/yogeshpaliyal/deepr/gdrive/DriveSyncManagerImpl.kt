@@ -18,6 +18,7 @@ import com.google.api.services.drive.Drive
 import com.google.api.services.drive.DriveScopes
 import com.yogeshpaliyal.deepr.BuildConfig
 import com.yogeshpaliyal.deepr.DeeprQueries
+import com.yogeshpaliyal.deepr.util.GLOBAL_TAG_PROFILE_ID
 import com.yogeshpaliyal.deepr.util.formatDateTime
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -127,8 +128,11 @@ class DriveSyncManagerImpl(
                             val linkId = deeprQueries.lastInsertRowId().executeAsOne()
 
                             linkBackup.tags.forEach { tagName ->
-                                deeprQueries.insertTag(tagName, 0L)
-                                val tagId = deeprQueries.getTagByName(tagName, 0L).executeAsOneOrNull()?.id
+                                deeprQueries.insertTag(tagName, 0L, GLOBAL_TAG_PROFILE_ID)
+                                val tagId =
+                                    deeprQueries
+                                        .getTagByName(tagName, 0L, GLOBAL_TAG_PROFILE_ID)
+                                        .executeAsOneOrNull()?.id
                                 if (tagId != null) {
                                     deeprQueries.addTagToLink(linkId, tagId)
                                 }

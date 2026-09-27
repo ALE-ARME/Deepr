@@ -1,5 +1,11 @@
 package com.yogeshpaliyal.deepr.util
 
+/**
+ * [com.yogeshpaliyal.deepr.Tags.profileId] value used by tags that are not bound to
+ * any profile: global tags are offered by every profile.
+ */
+const val GLOBAL_TAG_PROFILE_ID = 0L
+
 object Constants {
     object Header {
         const val LINK = "Link"
