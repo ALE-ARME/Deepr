@@ -1,0 +1,37 @@
+-- Migration 12: make tags optionally profile specific.
+-- profileId = 0 marks a tag as global (visible from every profile), a value
+-- greater than 0 binds the tag to the profile with that id. Existing tags keep
+-- the previous behaviour and become global.
+CREATE TABLE Tags_new (
+id INTEGER PRIMARY KEY NOT NULL,
+name TEXT NOT NULL,
+isPrivate INTEGER NOT NULL DEFAULT 0,
+profileId INTEGER NOT NULL DEFAULT 0,
+UNIQUE(name, isPrivate, profileId)
+);
+
+INSERT INTO Tags_new(id, name, isPrivate, profileId)
+SELECT id, name, isPrivate, 0 FROM Tags;
+
+-- LinkTags references Tags, so it is set aside before the old Tags is dropped:
+-- dropping a table referenced by a foreign key runs an implicit delete that
+-- would cascade to every LinkTags row. Same approach as migration 11.
+CREATE TABLE LinkTags_temp AS SELECT * FROM LinkTags;
+DROP TABLE LinkTags;
+
+DROP TABLE Tags;
+ALTER TABLE Tags_new RENAME TO Tags;
+
+CREATE TABLE LinkTags (
+linkId INTEGER NOT NULL,
+tagId INTEGER NOT NULL,
+PRIMARY KEY (linkId, tagId),
+FOREIGN KEY (linkId) REFERENCES Deepr(id) ON DELETE CASCADE,
+FOREIGN KEY (tagId) REFERENCES Tags(id) ON DELETE CASCADE
+);
+
+INSERT INTO LinkTags SELECT * FROM LinkTags_temp;
+DROP TABLE LinkTags_temp;
+
+CREATE INDEX IF NOT EXISTS idx_tags_profileId
+ON Tags(profileId);

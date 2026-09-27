@@ -98,6 +98,11 @@
     <string name="edit_tag_description">Modifica Tag</string>
     <string name="delete_tag_description">Elimina Tag</string>
     <string name="selected_tags_count">%d tag selezionati</string>
+    <string name="tag_scope">Ambito del Tag</string>
+    <string name="tag_scope_global">Globale</string>
+    <string name="tag_scope_profile">Profilo: %1$s</string>
+    <string name="tag_badge_global">Globale</string>
+    <string name="tag_badge_profile">Solo %1$s</string>
     <string name="filtered_tags_count">%1$d di %2$d</string>
 
     <!-- Settings Screen -->

@@ -202,6 +202,7 @@ data class Dashboard2(
 }
 
 data class FilterTagItem(
+    val id: Long,
     val name: String,
     val count: Long,
     val isSelected: Boolean,
@@ -323,24 +324,24 @@ fun HomeScreen(
         // Get unique tags by merging both but first items should be selected tag and then tags
         val allTagsList = tags.value
         val mergedList = mutableListOf<FilterTagItem>()
-        val mapOfSelectedList = HashMap<String, Long>()
+        val mapOfSelectedList = HashMap<Long, Long>()
 
-        val alreadyAdded = HashSet<String>()
+        val alreadyAdded = HashSet<Long>()
 
         allTagsList.forEach { tag ->
-            mapOfSelectedList.put(tag.name, tag.linkCount)
+            mapOfSelectedList.put(tag.id, tag.linkCount)
         }
 
         selectedTag.forEach { tag ->
-            alreadyAdded.add(tag.name)
-            val count = mapOfSelectedList[tag.name] ?: 0L
-            mergedList.add(FilterTagItem(tag.name, count, true))
+            alreadyAdded.add(tag.id)
+            val count = mapOfSelectedList[tag.id] ?: 0L
+            mergedList.add(FilterTagItem(tag.id, tag.name, count, true))
         }
 
         allTagsList.forEach { tag ->
-            if (alreadyAdded.contains(tag.name).not()) {
-                alreadyAdded.add(tag.name)
-                mergedList.add(FilterTagItem(tag.name, tag.linkCount, false))
+            if (alreadyAdded.contains(tag.id).not()) {
+                alreadyAdded.add(tag.id)
+                mergedList.add(FilterTagItem(tag.id, tag.name, tag.linkCount, false))
             }
         }
         finalTagsInfo = mergedList
@@ -614,7 +615,7 @@ fun HomeScreen(
 
                         items(finalTagsInfo ?: listOf()) {
                             FilterChip(it.isSelected, {
-                                viewModel.setSelectedTagByName(it.name)
+                                viewModel.setTagFilterById(it.id, it.name)
                             }, label = {
                                 Text(it.name + " (${it.count})")
                             }, modifier = Modifier.animateItem(), shape = RoundedCornerShape(percent = 50))

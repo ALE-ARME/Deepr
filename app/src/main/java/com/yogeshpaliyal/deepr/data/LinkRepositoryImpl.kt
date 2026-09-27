@@ -96,7 +96,12 @@ class LinkRepositoryImpl(
 
     override suspend fun deleteProfile(id: Long) {
         withContext(Dispatchers.IO) {
-            deeprQueries.deleteProfile(id)
+            deeprQueries.transaction {
+                // Links are removed by the ON DELETE CASCADE of Deepr.profileId,
+                // while the tags bound to this profile have no such constraint.
+                deeprQueries.deleteTagsForProfile(id)
+                deeprQueries.deleteProfile(id)
+            }
         }
         scheduleAutoBackup()
     }
@@ -104,7 +109,10 @@ class LinkRepositoryImpl(
     override fun countProfiles(): Query<Long> = deeprQueries.countProfiles()
 
     // Tag operations
-    override fun getAllTags(isPrivate: Long): Query<Tags> = deeprQueries.getAllTags(isPrivate)
+    override fun getAllTags(
+        isPrivate: Long,
+        profileId: Long,
+    ): Query<Tags> = deeprQueries.getAllTags(isPrivate, profileId)
 
     override fun getAllTagsWithCount(
         profileId: Long,
@@ -114,27 +122,30 @@ class LinkRepositoryImpl(
     override suspend fun getTagByName(
         tagName: String,
         isPrivate: Long,
+        profileId: Long,
     ): Tags? =
         withContext(Dispatchers.IO) {
-            deeprQueries.getTagByName(tagName, isPrivate).executeAsOneOrNull()
+            deeprQueries.getTagByName(tagName, isPrivate, profileId).executeAsOneOrNull()
         }
 
     override suspend fun insertTag(
         tagName: String,
         isPrivate: Long,
+        profileId: Long,
     ) {
         withContext(Dispatchers.IO) {
-            deeprQueries.insertTag(tagName, isPrivate)
+            deeprQueries.insertTag(tagName, isPrivate, profileId)
         }
         scheduleAutoBackup()
     }
 
     override suspend fun updateTag(
         name: String,
+        profileId: Long,
         id: Long,
     ) {
         withContext(Dispatchers.IO) {
-            deeprQueries.updateTag(name, id)
+            deeprQueries.updateTag(name, profileId, id)
         }
         scheduleAutoBackup()
     }
@@ -149,6 +160,13 @@ class LinkRepositoryImpl(
     override suspend fun deleteTagRelations(id: Long) {
         withContext(Dispatchers.IO) {
             deeprQueries.deleteTagRelations(id)
+        }
+        scheduleAutoBackup()
+    }
+
+    override suspend fun deleteTagsForProfile(profileId: Long) {
+        withContext(Dispatchers.IO) {
+            deeprQueries.deleteTagsForProfile(profileId)
         }
         scheduleAutoBackup()
     }

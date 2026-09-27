@@ -55,6 +55,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,6 +75,8 @@ import com.yogeshpaliyal.deepr.R
 import com.yogeshpaliyal.deepr.Tags
 import com.yogeshpaliyal.deepr.ui.LocalNavigator
 import com.yogeshpaliyal.deepr.ui.components.ClearInputIconButton
+import com.yogeshpaliyal.deepr.ui.components.TagScopeDropdown
+import com.yogeshpaliyal.deepr.util.GLOBAL_TAG_PROFILE_ID
 import com.yogeshpaliyal.deepr.util.QRScanner
 import com.yogeshpaliyal.deepr.util.isValidDeeplink
 import com.yogeshpaliyal.deepr.util.normalizeLink
@@ -91,6 +94,7 @@ import compose.icons.tablericons.Qrcode
 import compose.icons.tablericons.Tag
 import compose.icons.tablericons.User
 import compose.icons.tablericons.X
+import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinActivityViewModel
 
@@ -177,6 +181,19 @@ fun AddLinkScreen(
         mutableStateOf(selectedLink.profileId.takeIf { !isCreate } ?: currentProfile?.id ?: 1L)
     }
 
+    // Only the global tags plus the ones bound to the profile this link is saved into
+    // are offered. Reloaded whenever the profile changes or a tag is created.
+    var availableTags by remember { mutableStateOf<List<Tags>>(emptyList()) }
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(selectedProfileId, isPrivateMode, allTags) {
+        availableTags = viewModel.getAllTagsForProfile(selectedProfileId)
+    }
+
+    // Scope of the tag being created, GLOBAL_TAG_PROFILE_ID means global
+    var newTagScopeProfileId by remember(selectedProfileId) {
+        mutableStateOf(GLOBAL_TAG_PROFILE_ID)
+    }
+
     // Pre-populate with current profile if it's a new link and we are currently at default
     // This handles cases where the current profile might take a moment to load
     LaunchedEffect(currentProfile) {
@@ -201,6 +218,7 @@ fun AddLinkScreen(
                             ?.getOrNull(index)
                             ?.trim() ?: context.getString(R.string.unknown),
                         if (isPrivateMode) 1L else 0L,
+                        GLOBAL_TAG_PROFILE_ID,
                     )
                 }
             selectedTags.clear()
@@ -587,7 +605,7 @@ fun AddLinkScreen(
                             expanded = tagsExpanded,
                             onDismissRequest = { tagsExpanded = false },
                         ) {
-                            allTags.forEach { tag ->
+                            availableTags.forEach { tag ->
                                 val isSelected = selectedTags.any { it.id == tag.id }
                                 DropdownMenuItem(
                                     text = {
@@ -616,7 +634,7 @@ fun AddLinkScreen(
                                 )
                             }
 
-                            if (allTags.isNotEmpty()) {
+                            if (availableTags.isNotEmpty()) {
                                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                             }
 
@@ -862,6 +880,11 @@ fun AddLinkScreen(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                     )
+                    TagScopeDropdown(
+                        selectedProfileId = newTagScopeProfileId,
+                        profiles = allProfiles,
+                        onProfileSelected = { newTagScopeProfileId = it },
+                    )
                     tagCreationError?.let { errorMessage ->
                         Text(
                             text = errorMessage,
@@ -880,9 +903,11 @@ fun AddLinkScreen(
                             return@TextButton
                         }
 
+                        // The same name can exist once per scope
                         val isDuplicateInAll =
-                            allTags.any {
-                                it.name.equals(trimmedTagName, ignoreCase = true)
+                            availableTags.any {
+                                it.name.equals(trimmedTagName, ignoreCase = true) &&
+                                    it.profileId == newTagScopeProfileId
                             }
                         val isDuplicateInSelected =
                             selectedTags.any {
@@ -892,19 +917,47 @@ fun AddLinkScreen(
                         if (isDuplicateInAll || isDuplicateInSelected) {
                             tagCreationError = context.getString(R.string.tag_name_exists)
                         } else {
-                            // Persist immediately as suggested in review
-                            viewModel.insertTag(trimmedTagName)
+                            // The link may target a profile other than the selected one, so
+                            // the tag is created and awaited instead of relying on the
+                            // observed query to emit.
+                            scope.launch {
+                                val created =
+                                    viewModel.insertTagAndGet(
+                                        trimmedTagName,
+                                        newTagScopeProfileId,
+                                    )
 
-                            // Add to current selection (using ID 0 as placeholder until DB syncs)
-                            selectedTags.add(Tags(0, trimmedTagName, if (isPrivateMode) 1L else 0L))
+                                if (created != null) {
+                                    selectedTags.add(created)
+                                    // Only the tag of the very same scope is replaced, a tag
+                                    // with the same name can also live in another scope
+                                    availableTags =
+                                        (
+                                            availableTags.filterNot {
+                                                it.name.equals(created.name, ignoreCase = true) &&
+                                                    it.profileId == created.profileId
+                                            } + created
+                                        ).sortedBy { it.name }
+                                } else {
+                                    // Fall back to the id 0 placeholder
+                                    selectedTags.add(
+                                        Tags(
+                                            0,
+                                            trimmedTagName,
+                                            if (isPrivateMode) 1L else 0L,
+                                            newTagScopeProfileId,
+                                        ),
+                                    )
+                                }
 
-                            showCreateTagDialog = false
-                            Toast
-                                .makeText(
-                                    context,
-                                    context.getString(R.string.tag_created_successfully),
-                                    Toast.LENGTH_SHORT,
-                                ).show()
+                                showCreateTagDialog = false
+                                Toast
+                                    .makeText(
+                                        context,
+                                        context.getString(R.string.tag_created_successfully),
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                            }
                         }
                     },
                     enabled = newTagNameDialog.isNotBlank(),

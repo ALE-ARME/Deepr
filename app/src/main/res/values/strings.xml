@@ -105,6 +105,11 @@
     <string name="edit_tag_description">Edit Tag</string>
     <string name="delete_tag_description">Delete Tag</string>
     <string name="selected_tags_count">%d tags selected</string>
+    <string name="tag_scope">Tag Scope</string>
+    <string name="tag_scope_global">Global</string>
+    <string name="tag_scope_profile">Profile: %1$s</string>
+    <string name="tag_badge_global">Global</string>
+    <string name="tag_badge_profile">%1$s only</string>
 
     <plurals name="tag_used_by_links">
         <item quantity="one">This tag is used by %1$d link. Deleting it will remove the tag from this link.</item>

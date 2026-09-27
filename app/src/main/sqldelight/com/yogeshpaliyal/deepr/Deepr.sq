@@ -25,12 +25,18 @@ profileId INTEGER NOT NULL DEFAULT 1,
 FOREIGN KEY (profileId) REFERENCES Profile(id) ON DELETE CASCADE
 );
 
+-- profileId = 0 means the tag is global and therefore visible from every profile.
+-- A value greater than 0 binds the tag to the profile with that id.
 CREATE TABLE Tags (
 id INTEGER PRIMARY KEY NOT NULL,
 name TEXT NOT NULL,
 isPrivate INTEGER NOT NULL DEFAULT 0,
-UNIQUE(name, isPrivate)
+profileId INTEGER NOT NULL DEFAULT 0,
+UNIQUE(name, isPrivate, profileId)
 );
+
+CREATE INDEX IF NOT EXISTS idx_tags_profileId
+ON Tags(profileId);
 
 CREATE TABLE LinkTags (
 linkId INTEGER NOT NULL,
@@ -224,16 +230,17 @@ SELECT * FROM Deepr WHERE id = ?;
 
 -- Tag operations
 insertTag:
-INSERT OR IGNORE INTO Tags (name, isPrivate) VALUES (?, ?);
+INSERT OR IGNORE INTO Tags (name, isPrivate, profileId) VALUES (?, ?, ?);
 
 getTagByName:
-SELECT * FROM Tags WHERE name = ? AND isPrivate = ?;
+SELECT * FROM Tags WHERE name = :name AND isPrivate = :isPrivate AND profileId = :profileId;
 
 getTagById:
 SELECT * FROM Tags WHERE id = ?;
 
+-- Global tags (profileId = 0) plus the ones bound to the given profile
 getAllTags:
-SELECT * FROM Tags WHERE isPrivate = ? ORDER BY name;
+SELECT * FROM Tags WHERE isPrivate = :isPrivate AND (profileId = 0 OR profileId = :profileId) ORDER BY name;
 
 listAllTagsAsc:
 SELECT * FROM Tags ORDER BY name ASC;
@@ -241,16 +248,19 @@ SELECT * FROM Tags ORDER BY name ASC;
 listAllLinkTags:
 SELECT * FROM LinkTags;
 
+-- Global tags (profileId = 0) plus the ones bound to the given profile
 getAllTagsWithCount:
 SELECT 
   Tags.id,
   Tags.name,
-  COUNT(DISTINCT CASE WHEN Deepr.profileId = ? THEN LinkTags.linkId END) AS linkCount
+  Tags.profileId,
+  COUNT(DISTINCT CASE WHEN Deepr.profileId = :profileId THEN LinkTags.linkId END) AS linkCount
 FROM Tags
 LEFT JOIN LinkTags ON Tags.id = LinkTags.tagId
 LEFT JOIN Deepr ON LinkTags.linkId = Deepr.id
-WHERE Tags.isPrivate = ?
-GROUP BY Tags.id, Tags.name
+WHERE Tags.isPrivate = :isPrivate
+  AND (Tags.profileId = 0 OR Tags.profileId = :profileId)
+GROUP BY Tags.id, Tags.name, Tags.profileId
 ORDER BY linkCount DESC, Tags.name;
 
 countOfLinks:
@@ -277,8 +287,12 @@ DELETE FROM Tags WHERE id = ?;
 deleteTagRelations:
 DELETE FROM LinkTags WHERE tagId = ?;
 
+-- Tags bound to a profile are removed together with the profile itself
+deleteTagsForProfile:
+DELETE FROM Tags WHERE profileId = ?;
+
 updateTag:
-UPDATE Tags SET name = ? WHERE id = ?;
+UPDATE Tags SET name = ? , profileId = ? WHERE id = ?;
 
 getTagsForLink:
 SELECT Tags.* FROM Tags INNER JOIN LinkTags ON Tags.id = LinkTags.tagId WHERE LinkTags.linkId = ? ORDER BY Tags.name;
