@@ -233,14 +233,14 @@ insertTag:
 INSERT OR IGNORE INTO Tags (name, isPrivate, profileId) VALUES (?, ?, ?);
 
 getTagByName:
-SELECT * FROM Tags WHERE name = $name AND isPrivate = $isPrivate AND profileId = $profileId;
+SELECT * FROM Tags WHERE name = :name AND isPrivate = :isPrivate AND profileId = :profileId;
 
 getTagById:
 SELECT * FROM Tags WHERE id = ?;
 
 -- Global tags (profileId = 0) plus the ones bound to the given profile
 getAllTags:
-SELECT * FROM Tags WHERE isPrivate = $isPrivate AND (profileId = 0 OR profileId = $profileId) ORDER BY name;
+SELECT * FROM Tags WHERE isPrivate = :isPrivate AND (profileId = 0 OR profileId = :profileId) ORDER BY name;
 
 listAllTagsAsc:
 SELECT * FROM Tags ORDER BY name ASC;
@@ -254,12 +254,12 @@ SELECT
   Tags.id,
   Tags.name,
   Tags.profileId,
-  COUNT(DISTINCT CASE WHEN Deepr.profileId = $profileId THEN LinkTags.linkId END) AS linkCount
+  COUNT(DISTINCT CASE WHEN Deepr.profileId = :profileId THEN LinkTags.linkId END) AS linkCount
 FROM Tags
 LEFT JOIN LinkTags ON Tags.id = LinkTags.tagId
 LEFT JOIN Deepr ON LinkTags.linkId = Deepr.id
-WHERE Tags.isPrivate = $isPrivate
-  AND (Tags.profileId = 0 OR Tags.profileId = $profileId)
+WHERE Tags.isPrivate = :isPrivate
+  AND (Tags.profileId = 0 OR Tags.profileId = :profileId)
 GROUP BY Tags.id, Tags.name, Tags.profileId
 ORDER BY linkCount DESC, Tags.name;
 
