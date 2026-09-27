@@ -200,7 +200,6 @@
     <string name="no_search_results">Ничего не найдено</string>
     <string name="show_qr_code">Показать QR-код</string>
     <string name="export_deeplinks_description">Экспортировать ссылки в файл CSV</string>
-    <string name="clear_all_filters">Очистить все фильтры</string>
     <string name="reset_opened_count">Сбросить счётчик открытий</string>
     <string name="sort_by_opened_ascending">Сортировать по числу открытий (По возрастанию)</string>
     <string name="sort_by_date_ascending">Сортировать по дате (По возрастанию)</string>

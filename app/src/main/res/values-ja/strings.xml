@@ -86,7 +86,6 @@
     <string name="tag_deleted_successfully">Tagを削除しました</string>
     <string name="edit_tag_description">Tagを編集</string>
     <string name="delete_tag_description">Tagを削除</string>
-    <string name="clear_all_filters">全てのFilterを解除</string>
     <string name="selected_tags_count">%d 個のtagを選択中</string>
         <plurals name="tag_used_by_links">
         <item quantity="other">このタグは %1$d 個のリンクで使用されています。削除すると、これらのリンクからタグが削除されます。</item>

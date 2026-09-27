@@ -179,7 +179,7 @@ object TagSelectionScreen : TopLevelRoute {
                     androidx.compose.foundation.layout.PaddingValues(
                         start = 16.dp,
                         end = 16.dp,
-                        bottom = 100.dp,
+                        bottom = 24.dp,
                     ),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -226,31 +226,6 @@ object TagSelectionScreen : TopLevelRoute {
                             modifier = Modifier.padding(0.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                Surface(
-                                    color = MaterialTheme.colorScheme.primaryContainer,
-                                    shape = RoundedCornerShape(12.dp),
-                                ) {
-                                    Icon(
-                                        imageVector = TablerIcons.Plus,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        modifier =
-                                            Modifier
-                                                .padding(8.dp)
-                                                .size(24.dp),
-                                    )
-                                }
-                                Text(
-                                    text = stringResource(R.string.create_tag),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                            }
-
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
