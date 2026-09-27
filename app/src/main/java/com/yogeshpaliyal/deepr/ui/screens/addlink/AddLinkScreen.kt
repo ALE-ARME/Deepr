@@ -929,10 +929,13 @@ fun AddLinkScreen(
 
                                 if (created != null) {
                                     selectedTags.add(created)
+                                    // Only the tag of the very same scope is replaced, a tag
+                                    // with the same name can also live in another scope
                                     availableTags =
                                         (
                                             availableTags.filterNot {
-                                                it.name.equals(created.name, ignoreCase = true)
+                                                it.name.equals(created.name, ignoreCase = true) &&
+                                                    it.profileId == created.profileId
                                             } + created
                                         ).sortedBy { it.name }
                                 } else {
