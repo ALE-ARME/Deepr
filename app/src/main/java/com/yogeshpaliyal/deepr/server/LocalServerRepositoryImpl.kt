@@ -27,6 +27,7 @@ import io.ktor.http.path
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.ApplicationCallPipeline
+import io.ktor.server.application.call
 import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.install
 import io.ktor.server.cio.CIO
@@ -246,13 +247,14 @@ open class LocalServerRepositoryImpl(
                     }
 
                     intercept(ApplicationCallPipeline.Plugins) {
-                        val path = call.request.uri.substringBefore("?")
+                        val currentCall = context
+                        val path = currentCall.request.uri.substringBefore("?")
                         if (path.startsWith("/api/") &&
                             !path.startsWith("/api/auth/") &&
                             !path.startsWith("/api/transfer/")
                         ) {
-                            if (!isAuthorized(call)) {
-                                call.respond(
+                            if (!isAuthorized(currentCall)) {
+                                currentCall.respond(
                                     HttpStatusCode.Unauthorized,
                                     ErrorResponse(
                                         "Unauthorized: Password required. Provide Authorization: Bearer <password> or X-Server-Password header.",
