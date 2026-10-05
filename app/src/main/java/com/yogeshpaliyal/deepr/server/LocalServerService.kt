@@ -93,6 +93,9 @@ class LocalServerService : Service() {
                         val notificationManager =
                             getSystemService(NOTIFICATION_SERVICE) as NotificationManager
                         notificationManager.notify(NOTIFICATION_ID, createNotification(serverUrl))
+                    } else {
+                        stopForeground(STOP_FOREGROUND_REMOVE)
+                        stopSelf()
                     }
                 }
             }

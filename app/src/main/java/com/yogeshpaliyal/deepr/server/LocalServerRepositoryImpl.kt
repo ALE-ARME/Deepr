@@ -25,6 +25,7 @@ import io.ktor.http.URLProtocol
 import io.ktor.http.isSuccess
 import io.ktor.http.path
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.install
 import io.ktor.server.cio.CIO
 import io.ktor.server.cio.CIOApplicationEngine
@@ -32,6 +33,7 @@ import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.receive
+import io.ktor.server.request.uri
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.delete
@@ -41,11 +43,14 @@ import io.ktor.server.routing.put
 import io.ktor.server.routing.routing
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -53,6 +58,7 @@ import kotlinx.serialization.json.Json
 import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Implementation of [LocalServerRepository] that runs an embedded Ktor server
@@ -100,6 +106,17 @@ open class LocalServerRepositoryImpl(
      */
     override val serverPort: StateFlow<Int> = _serverPort.asStateFlow()
 
+    private val _serverInactivityTimeoutMinutes = MutableStateFlow(0)
+
+    /**
+     * [StateFlow] providing the inactivity timeout in minutes before auto-shutdown (0 = disabled).
+     */
+    override val serverInactivityTimeoutMinutes: StateFlow<Int> =
+        _serverInactivityTimeoutMinutes.asStateFlow()
+
+    private val lastActivityTime = AtomicLong(0L)
+    private var inactivityJob: Job? = null
+
     private val _qrCodeData = MutableStateFlow<String?>(null)
 
     /**
@@ -119,6 +136,12 @@ open class LocalServerRepositoryImpl(
                 }
             }
         }
+        // Load saved inactivity timeout on initialization
+        CoroutineScope(Dispatchers.IO).launch {
+            preferenceDataStore.getServerInactivityTimeoutMinutes.collect { timeout ->
+                _serverInactivityTimeoutMinutes.update { timeout }
+            }
+        }
     }
 
     /**
@@ -130,6 +153,16 @@ open class LocalServerRepositoryImpl(
             _serverPort.update { port }
             preferenceDataStore.setServerPort(port.toString())
         }
+    }
+
+    /**
+     * Sets the server inactivity timeout in minutes and persists it to preferences.
+     * @param minutes The timeout in minutes (0 means disabled).
+     */
+    override suspend fun setServerInactivityTimeoutMinutes(minutes: Int) {
+        val validMinutes = minutes.coerceAtLeast(0)
+        _serverInactivityTimeoutMinutes.update { validMinutes }
+        preferenceDataStore.setServerInactivityTimeoutMinutes(validMinutes)
     }
 
     /**
@@ -162,6 +195,16 @@ open class LocalServerRepositoryImpl(
             val ipAddress = getIpAddress() ?: "127.0.0.1"
             server =
                 embeddedServer(CIO, host = "0.0.0.0", port = port) {
+                    val activityTrackerPlugin =
+                        createApplicationPlugin(name = "ActivityTracker") {
+                            onCall { call ->
+                                if (!call.request.uri.startsWith("/api/private/status")) {
+                                    recordActivity()
+                                }
+                            }
+                        }
+                    install(activityTrackerPlugin)
+
                     install(ContentNegotiation) {
                         json(
                             Json {
@@ -1127,6 +1170,9 @@ open class LocalServerRepositoryImpl(
             _serverUrl.update { "http://$ipAddress:$port" }
             Log.d("LocalServer", "Server started at ${serverUrl.value}")
 
+            recordActivity()
+            startInactivityMonitor()
+
             if (port == 9000) {
                 generateQRCode(port)?.let { qrData -> _qrCodeData.update { qrData } }
             }
@@ -1138,6 +1184,8 @@ open class LocalServerRepositoryImpl(
         } catch (e: Exception) {
             Log.e("LocalServer", "Error starting server", e)
 
+            inactivityJob?.cancel()
+            inactivityJob = null
             try {
                 server?.stop(500, 1000)
             } catch (_: Exception) {
@@ -1150,10 +1198,43 @@ open class LocalServerRepositoryImpl(
         }
     }
 
+    private fun recordActivity() {
+        lastActivityTime.set(System.currentTimeMillis())
+    }
+
+    private fun startInactivityMonitor() {
+        inactivityJob?.cancel()
+        inactivityJob =
+            CoroutineScope(Dispatchers.IO).launch {
+                while (isActive) {
+                    val timeoutMinutes = _serverInactivityTimeoutMinutes.value
+                    if (timeoutMinutes > 0) {
+                        val elapsedMs = System.currentTimeMillis() - lastActivityTime.get()
+                        val timeoutMs = timeoutMinutes * 60 * 1000L
+                        if (elapsedMs >= timeoutMs) {
+                            Log.d(
+                                "LocalServer",
+                                "Inactivity timeout of $timeoutMinutes min reached, stopping server automatically",
+                            )
+                            LocalServerService.stopService(context)
+                            stopServer()
+                            break
+                        }
+                        val remainingMs = timeoutMs - elapsedMs
+                        delay(remainingMs.coerceIn(1000L, 10000L))
+                    } else {
+                        delay(10000L)
+                    }
+                }
+            }
+    }
+
     /**
      * Stops the embedded Ktor server.
      */
     override fun stopServer() {
+        inactivityJob?.cancel()
+        inactivityJob = null
         try {
             server?.stop(1000, 2000)
             Log.d("LocalServer", "Server stopped")

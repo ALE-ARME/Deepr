@@ -272,6 +272,13 @@
     <string name="invalid_port">Invalid port number. Must be between 1024 and 65535.</string>
     <string name="port_changed_restart">Port changed. Server restarting...</string>
     <string name="change_port">Change Port</string>
+    <string name="server_inactivity_timeout">Inactivity timeout</string>
+    <string name="server_inactivity_timeout_disabled">Disabled</string>
+    <string name="server_inactivity_timeout_minutes">%1$d minutes</string>
+    <string name="server_inactivity_timeout_description">Automatically stop the server after a period of inactivity. Enter 0 to disable.</string>
+    <string name="inactivity_timeout_minutes_label">Minutes of inactivity (0 = disabled)</string>
+    <string name="invalid_timeout_number">Invalid duration. Please enter 0 or greater.</string>
+    <string name="change_inactivity_timeout">Change Inactivity Timeout</string>
 
     
     <string name="transfer_link_server">Transfer Link Server</string>
