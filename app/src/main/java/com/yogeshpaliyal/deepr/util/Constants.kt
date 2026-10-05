@@ -37,6 +37,8 @@ object Constants {
         const val SYNC_ENABLED = "syncEnabled"
         const val SYNC_FILE_PATH = "syncFilePath"
         const val SERVER_PORT = "serverPort"
+        const val SERVER_INACTIVITY_TIMEOUT = "serverInactivityTimeout"
+        const val SERVER_PASSWORD = "serverPassword"
         const val DEFAULT_PROFILE_NAME = "defaultProfileName"
         const val SILENT_SAVE_PROFILE_NAME = "silentSaveProfileName"
         const val HIDE_LINK_URL = "hideLinkUrl"

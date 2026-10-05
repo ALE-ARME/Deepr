@@ -25,6 +25,10 @@ import io.ktor.http.URLProtocol
 import io.ktor.http.isSuccess
 import io.ktor.http.path
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.ApplicationCall
+import io.ktor.server.application.ApplicationCallPipeline
+import io.ktor.server.application.call
+import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.install
 import io.ktor.server.cio.CIO
 import io.ktor.server.cio.CIOApplicationEngine
@@ -32,6 +36,7 @@ import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.receive
+import io.ktor.server.request.uri
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.delete
@@ -41,11 +46,14 @@ import io.ktor.server.routing.put
 import io.ktor.server.routing.routing
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -53,6 +61,7 @@ import kotlinx.serialization.json.Json
 import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Implementation of [LocalServerRepository] that runs an embedded Ktor server
@@ -100,6 +109,24 @@ open class LocalServerRepositoryImpl(
      */
     override val serverPort: StateFlow<Int> = _serverPort.asStateFlow()
 
+    private val _serverInactivityTimeoutMinutes = MutableStateFlow(0)
+
+    /**
+     * [StateFlow] providing the inactivity timeout in minutes before auto-shutdown (0 = disabled).
+     */
+    override val serverInactivityTimeoutMinutes: StateFlow<Int> =
+        _serverInactivityTimeoutMinutes.asStateFlow()
+
+    private val _serverPassword = MutableStateFlow("")
+
+    /**
+     * [StateFlow] providing the configured server password (empty string = no password required).
+     */
+    override val serverPassword: StateFlow<String> = _serverPassword.asStateFlow()
+
+    private val lastActivityTime = AtomicLong(0L)
+    private var inactivityJob: Job? = null
+
     private val _qrCodeData = MutableStateFlow<String?>(null)
 
     /**
@@ -119,6 +146,18 @@ open class LocalServerRepositoryImpl(
                 }
             }
         }
+        // Load saved inactivity timeout on initialization
+        CoroutineScope(Dispatchers.IO).launch {
+            preferenceDataStore.getServerInactivityTimeoutMinutes.collect { timeout ->
+                _serverInactivityTimeoutMinutes.update { timeout }
+            }
+        }
+        // Load saved server password on initialization
+        CoroutineScope(Dispatchers.IO).launch {
+            preferenceDataStore.getServerPassword.collect { pwd ->
+                _serverPassword.update { pwd }
+            }
+        }
     }
 
     /**
@@ -130,6 +169,26 @@ open class LocalServerRepositoryImpl(
             _serverPort.update { port }
             preferenceDataStore.setServerPort(port.toString())
         }
+    }
+
+    /**
+     * Sets the server inactivity timeout in minutes and persists it to preferences.
+     * @param minutes The timeout in minutes (0 means disabled).
+     */
+    override suspend fun setServerInactivityTimeoutMinutes(minutes: Int) {
+        val validMinutes = minutes.coerceAtLeast(0)
+        _serverInactivityTimeoutMinutes.update { validMinutes }
+        preferenceDataStore.setServerInactivityTimeoutMinutes(validMinutes)
+    }
+
+    /**
+     * Sets the server password and persists it to preferences.
+     * @param password The password (empty string disables password protection).
+     */
+    override suspend fun setServerPassword(password: String) {
+        val trimmed = password.trim()
+        _serverPassword.update { trimmed }
+        preferenceDataStore.setServerPassword(trimmed)
     }
 
     /**
@@ -162,6 +221,21 @@ open class LocalServerRepositoryImpl(
             val ipAddress = getIpAddress() ?: "127.0.0.1"
             server =
                 embeddedServer(CIO, host = "0.0.0.0", port = port) {
+                    val activityTrackerPlugin =
+                        createApplicationPlugin(name = "ActivityTracker") {
+                            onCall { call ->
+                                val path = call.request.uri.substringBefore("?")
+                                if (!path.startsWith("/api/private/status") &&
+                                    !path.startsWith("/api/auth/status")
+                                ) {
+                                    if (!path.startsWith("/api/") || isAuthorized(call)) {
+                                        recordActivity()
+                                    }
+                                }
+                            }
+                        }
+                    install(activityTrackerPlugin)
+
                     install(ContentNegotiation) {
                         json(
                             Json {
@@ -172,7 +246,92 @@ open class LocalServerRepositoryImpl(
                         )
                     }
 
+                    intercept(ApplicationCallPipeline.Plugins) {
+                        val currentCall = context
+                        val path = currentCall.request.uri.substringBefore("?")
+                        if (path.startsWith("/api/") &&
+                            !path.startsWith("/api/auth/") &&
+                            !path.startsWith("/api/transfer/")
+                        ) {
+                            if (!isAuthorized(currentCall)) {
+                                currentCall.respond(
+                                    HttpStatusCode.Unauthorized,
+                                    ErrorResponse(
+                                        "Unauthorized: Password required. Provide Authorization: Bearer <password> or X-Server-Password header.",
+                                    ),
+                                )
+                                finish()
+                            }
+                        }
+                    }
+
                     routing {
+                        get("/api/auth/status") {
+                            call.respond(
+                                HttpStatusCode.OK,
+                                AuthStatusResponse(
+                                    requiresPassword = _serverPassword.value.isNotBlank(),
+                                    authenticated = isAuthorized(call),
+                                ),
+                            )
+                        }
+
+                        post("/api/auth/login") {
+                            try {
+                                val configuredPassword = _serverPassword.value
+                                if (configuredPassword.isBlank()) {
+                                    call.respond(
+                                        HttpStatusCode.OK,
+                                        AuthLoginResponse(
+                                            success = true,
+                                            message = "No password required",
+                                        ),
+                                    )
+                                    return@post
+                                }
+
+                                if (isAuthorized(call)) {
+                                    call.respond(
+                                        HttpStatusCode.OK,
+                                        AuthLoginResponse(
+                                            success = true,
+                                            message = "Authenticated",
+                                        ),
+                                    )
+                                    return@post
+                                }
+
+                                val body =
+                                    try {
+                                        call.receive<LoginRequest>()
+                                    } catch (_: Exception) {
+                                        null
+                                    }
+                                if (body != null && body.password == configuredPassword) {
+                                    call.respond(
+                                        HttpStatusCode.OK,
+                                        AuthLoginResponse(
+                                            success = true,
+                                            message = "Authenticated",
+                                        ),
+                                    )
+                                } else {
+                                    call.respond(
+                                        HttpStatusCode.Unauthorized,
+                                        AuthLoginResponse(
+                                            success = false,
+                                            error = "Invalid password",
+                                        ),
+                                    )
+                                }
+                            } catch (e: Exception) {
+                                Log.e("LocalServer", "Error during login check", e)
+                                call.respond(
+                                    HttpStatusCode.InternalServerError,
+                                    ErrorResponse("Error checking password: ${e.message}"),
+                                )
+                            }
+                        }
                         get("/") {
                             try {
                                 val languageCode = preferenceDataStore.getLanguageCode.first()
@@ -1127,6 +1286,9 @@ open class LocalServerRepositoryImpl(
             _serverUrl.update { "http://$ipAddress:$port" }
             Log.d("LocalServer", "Server started at ${serverUrl.value}")
 
+            recordActivity()
+            startInactivityMonitor()
+
             if (port == 9000) {
                 generateQRCode(port)?.let { qrData -> _qrCodeData.update { qrData } }
             }
@@ -1138,6 +1300,8 @@ open class LocalServerRepositoryImpl(
         } catch (e: Exception) {
             Log.e("LocalServer", "Error starting server", e)
 
+            inactivityJob?.cancel()
+            inactivityJob = null
             try {
                 server?.stop(500, 1000)
             } catch (_: Exception) {
@@ -1150,10 +1314,84 @@ open class LocalServerRepositoryImpl(
         }
     }
 
+    private fun recordActivity() {
+        lastActivityTime.set(System.currentTimeMillis())
+    }
+
+    private fun startInactivityMonitor() {
+        inactivityJob?.cancel()
+        inactivityJob =
+            CoroutineScope(Dispatchers.IO).launch {
+                while (isActive) {
+                    val timeoutMinutes = _serverInactivityTimeoutMinutes.value
+                    if (timeoutMinutes > 0) {
+                        val elapsedMs = System.currentTimeMillis() - lastActivityTime.get()
+                        val timeoutMs = timeoutMinutes * 60 * 1000L
+                        if (elapsedMs >= timeoutMs) {
+                            Log.d(
+                                "LocalServer",
+                                "Inactivity timeout of $timeoutMinutes min reached, stopping server automatically",
+                            )
+                            LocalServerService.stopService(context)
+                            stopServer()
+                            break
+                        }
+                        val remainingMs = timeoutMs - elapsedMs
+                        delay(remainingMs.coerceIn(1000L, 10000L))
+                    } else {
+                        delay(10000L)
+                    }
+                }
+            }
+    }
+
+    private fun isAuthorized(call: ApplicationCall): Boolean {
+        val configuredPassword = _serverPassword.value
+        if (configuredPassword.isBlank()) return true
+
+        // 1. Check Authorization header: Bearer <password> or Basic <base64>
+        val authHeader = call.request.headers["Authorization"]
+        if (authHeader != null) {
+            if (authHeader.startsWith("Bearer ", ignoreCase = true)) {
+                val token = authHeader.substring(7).trim()
+                if (token == configuredPassword) return true
+            } else if (authHeader.startsWith("Basic ", ignoreCase = true)) {
+                try {
+                    val decoded =
+                        String(
+                            android.util.Base64.decode(
+                                authHeader.substring(6).trim(),
+                                android.util.Base64.DEFAULT,
+                            ),
+                        )
+                    val pwd = if (decoded.contains(":")) decoded.substringAfter(":") else decoded
+                    if (pwd == configuredPassword) return true
+                } catch (_: Exception) {
+                }
+            }
+        }
+
+        // 2. Check X-Server-Password header
+        val customHeader = call.request.headers["X-Server-Password"]
+        if (customHeader != null && customHeader == configuredPassword) {
+            return true
+        }
+
+        // 3. Check query parameters: ?password=<pwd> or ?auth=<pwd>
+        val queryPwd = call.request.queryParameters["password"] ?: call.request.queryParameters["auth"]
+        if (queryPwd != null && queryPwd == configuredPassword) {
+            return true
+        }
+
+        return false
+    }
+
     /**
      * Stops the embedded Ktor server.
      */
     override fun stopServer() {
+        inactivityJob?.cancel()
+        inactivityJob = null
         try {
             server?.stop(1000, 2000)
             Log.d("LocalServer", "Server stopped")
@@ -1623,4 +1861,22 @@ data class ServerInfoResponse(
 data class PrivateStatusResponse(
     val isUnlocked: Boolean,
     val status: String? = null,
+)
+
+@Serializable
+data class LoginRequest(
+    val password: String = "",
+)
+
+@Serializable
+data class AuthStatusResponse(
+    val requiresPassword: Boolean,
+    val authenticated: Boolean,
+)
+
+@Serializable
+data class AuthLoginResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val error: String? = null,
 )

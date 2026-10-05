@@ -213,4 +213,21 @@
     <string name="intent_action_toggle">Action Alterna Server</string>
     <string name="intent_target_package">Nome Pacchetto</string>
     <string name="intent_target_class">Classe Receiver</string>
+    <string name="server_inactivity_timeout">Timeout di inattività</string>
+    <string name="server_inactivity_timeout_disabled">Disattivato</string>
+    <string name="server_inactivity_timeout_minutes">%1$d minuti</string>
+    <string name="server_inactivity_timeout_description">Disattiva automaticamente il server dopo un periodo di inattività. Inserisci 0 per disattivare.</string>
+    <string name="inactivity_timeout_minutes_label">Minuti di inattività (0 = disattivato)</string>
+    <string name="invalid_timeout_number">Durata non valida. Inserisci 0 o un valore maggiore.</string>
+    <string name="change_inactivity_timeout">Modifica timeout di inattività</string>
+    <string name="server_password">Password del server</string>
+    <string name="server_password_not_set">Non impostata (Accesso libero)</string>
+    <string name="server_password_set">Protetto da password</string>
+    <string name="change_server_password">Modifica password del server</string>
+    <string name="server_password_description">Richiedi una password per accedere all\'interfaccia web e agli endpoint API del server. Lascia vuoto per disattivare.</string>
+    <string name="server_password_placeholder">Inserisci password</string>
+    <string name="hide_password">Nascondi password</string>
+    <string name="show_password">Mostra password</string>
+    <string name="remove_password">Rimuovi password</string>
+    <string name="password_removed">Password rimossa</string>
 </resources>

@@ -36,6 +36,9 @@ class AppPreferenceDataStore(
         private val DEFAULT_PAGE_FAVOURITES = booleanPreferencesKey("default_page_favourites")
         private val IS_THUMBNAIL_ENABLE = booleanPreferencesKey("is_thumbnail_enable")
         private val SERVER_PORT = stringPreferencesKey("server_port")
+        private val SERVER_INACTIVITY_TIMEOUT_MINUTES =
+            intPreferencesKey("server_inactivity_timeout_minutes")
+        private val SERVER_PASSWORD = stringPreferencesKey("server_password")
         private val VIEW_TYPE = intPreferencesKey("view_type")
         private val THEME_MODE = stringPreferencesKey("theme_mode")
         private val SHOW_NOTES_INSTEAD_OF_COUNTER = booleanPreferencesKey("show_notes_instead_of_counter")
@@ -121,6 +124,16 @@ class AppPreferenceDataStore(
     val getServerPort: Flow<String> =
         context.appDataStore.data.map { preferences ->
             preferences[SERVER_PORT] ?: "" // Default to empty string
+        }
+
+    val getServerInactivityTimeoutMinutes: Flow<Int> =
+        context.appDataStore.data.map { preferences ->
+            preferences[SERVER_INACTIVITY_TIMEOUT_MINUTES] ?: 0 // Default to 0 (disabled)
+        }
+
+    val getServerPassword: Flow<String> =
+        context.appDataStore.data.map { preferences ->
+            preferences[SERVER_PASSWORD] ?: "" // Default to empty string (no password)
         }
 
     val getThemeMode: Flow<String> =
@@ -259,6 +272,18 @@ class AppPreferenceDataStore(
         }
     }
 
+    suspend fun setServerInactivityTimeoutMinutes(minutes: Int) {
+        context.appDataStore.edit { prefs ->
+            prefs[SERVER_INACTIVITY_TIMEOUT_MINUTES] = minutes
+        }
+    }
+
+    suspend fun setServerPassword(password: String) {
+        context.appDataStore.edit { prefs ->
+            prefs[SERVER_PASSWORD] = password
+        }
+    }
+
     suspend fun setThemeMode(mode: String) {
         context.appDataStore.edit { prefs ->
             prefs[THEME_MODE] = mode
@@ -342,6 +367,9 @@ class AppPreferenceDataStore(
         settings[Constants.Settings.SYNC_ENABLED] = getSyncEnabled.first().toString()
         settings[Constants.Settings.SYNC_FILE_PATH] = getSyncFilePath.first()
         settings[Constants.Settings.SERVER_PORT] = getServerPort.first()
+        settings[Constants.Settings.SERVER_INACTIVITY_TIMEOUT] =
+            getServerInactivityTimeoutMinutes.first().toString()
+        settings[Constants.Settings.SERVER_PASSWORD] = getServerPassword.first()
         return settings
     }
 }

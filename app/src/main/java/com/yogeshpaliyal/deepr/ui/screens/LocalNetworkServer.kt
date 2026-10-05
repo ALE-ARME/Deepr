@@ -50,6 +50,8 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
@@ -68,10 +70,14 @@ import com.yogeshpaliyal.deepr.ui.Screen
 import com.yogeshpaliyal.deepr.viewmodel.LocalServerViewModel
 import compose.icons.TablerIcons
 import compose.icons.tablericons.ArrowLeft
+import compose.icons.tablericons.Clock
 import compose.icons.tablericons.Copy
 import compose.icons.tablericons.DeviceMobile
 import compose.icons.tablericons.Edit
+import compose.icons.tablericons.Eye
+import compose.icons.tablericons.EyeOff
 import compose.icons.tablericons.InfoCircle
+import compose.icons.tablericons.Lock
 import compose.icons.tablericons.Qrcode
 import compose.icons.tablericons.Server
 import compose.icons.tablericons.Wifi
@@ -98,6 +104,8 @@ fun LocalNetworkServerScreen(
     val isRunning by viewModel.isRunning.collectAsStateWithLifecycle()
     val serverUrl by viewModel.serverUrl.collectAsStateWithLifecycle()
     val serverPort by viewModel.serverPort.collectAsStateWithLifecycle()
+    val inactivityTimeout by viewModel.serverInactivityTimeoutMinutes.collectAsStateWithLifecycle()
+    val serverPassword by viewModel.serverPassword.collectAsStateWithLifecycle()
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val coroutine = rememberCoroutineScope()
 
@@ -108,6 +116,16 @@ fun LocalNetworkServerScreen(
     var showPortDialog by remember { mutableStateOf(false) }
     var portInput by remember { mutableStateOf("") }
     var portError by remember { mutableStateOf(false) }
+
+    // Inactivity timeout configuration dialog
+    var showTimeoutDialog by remember { mutableStateOf(false) }
+    var timeoutInput by remember { mutableStateOf("") }
+    var timeoutError by remember { mutableStateOf(false) }
+
+    // Password configuration dialog
+    var showPasswordDialog by remember { mutableStateOf(false) }
+    var passwordInput by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
 
     // Request notification permission for Android 13+
     val notificationPermissionState =
@@ -168,6 +186,26 @@ fun LocalNetworkServerScreen(
                     portInput = serverPort.toString()
                     portError = false
                     showPortDialog = true
+                },
+            )
+
+            // Inactivity Timeout Configuration Card
+            InactivityTimeoutCard(
+                timeoutMinutes = inactivityTimeout,
+                onChangeTimeout = {
+                    timeoutInput = inactivityTimeout.toString()
+                    timeoutError = false
+                    showTimeoutDialog = true
+                },
+            )
+
+            // Password Configuration Card
+            PasswordConfigurationCard(
+                serverPassword = serverPassword,
+                onChangePassword = {
+                    passwordInput = serverPassword
+                    passwordVisible = false
+                    showPasswordDialog = true
                 },
             )
 
@@ -556,6 +594,154 @@ fun LocalNetworkServerScreen(
             },
         )
     }
+
+    // Inactivity Timeout Configuration Dialog
+    if (showTimeoutDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showTimeoutDialog = false },
+            title = { Text(stringResource(R.string.change_inactivity_timeout)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = stringResource(R.string.server_inactivity_timeout_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    androidx.compose.material3.OutlinedTextField(
+                        value = timeoutInput,
+                        onValueChange = {
+                            timeoutInput = it
+                            timeoutError = false
+                        },
+                        label = { Text(stringResource(R.string.inactivity_timeout_minutes_label)) },
+                        placeholder = { Text("0") },
+                        isError = timeoutError,
+                        supportingText =
+                            if (timeoutError) {
+                                { Text(stringResource(R.string.invalid_timeout_number)) }
+                            } else {
+                                null
+                            },
+                        keyboardOptions =
+                            androidx.compose.foundation.text.KeyboardOptions(
+                                keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
+                            ),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        val minutes = timeoutInput.toIntOrNull()
+                        if (minutes != null && minutes >= 0) {
+                            viewModel.setServerInactivityTimeoutMinutes(minutes)
+                            showTimeoutDialog = false
+                            Toast
+                                .makeText(
+                                    context,
+                                    context.getString(R.string.saved),
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                        } else {
+                            timeoutError = true
+                        }
+                    },
+                ) {
+                    Text(stringResource(R.string.save))
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showTimeoutDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
+    // Password Configuration Dialog
+    if (showPasswordDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showPasswordDialog = false },
+            title = { Text(stringResource(R.string.change_server_password)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = stringResource(R.string.server_password_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    androidx.compose.material3.OutlinedTextField(
+                        value = passwordInput,
+                        onValueChange = { passwordInput = it },
+                        label = { Text(stringResource(R.string.server_password)) },
+                        placeholder = { Text(stringResource(R.string.server_password_placeholder)) },
+                        visualTransformation =
+                            if (passwordVisible) {
+                                VisualTransformation.None
+                            } else {
+                                PasswordVisualTransformation()
+                            },
+                        trailingIcon = {
+                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                Icon(
+                                    if (passwordVisible) TablerIcons.EyeOff else TablerIcons.Eye,
+                                    contentDescription =
+                                        if (passwordVisible) {
+                                            stringResource(R.string.hide_password)
+                                        } else {
+                                            stringResource(R.string.show_password)
+                                        },
+                                )
+                            }
+                        },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        viewModel.setServerPassword(passwordInput.trim())
+                        showPasswordDialog = false
+                        Toast
+                            .makeText(
+                                context,
+                                context.getString(R.string.saved),
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                    },
+                ) {
+                    Text(stringResource(R.string.save))
+                }
+            },
+            dismissButton = {
+                Row {
+                    if (serverPassword.isNotEmpty()) {
+                        androidx.compose.material3.TextButton(
+                            onClick = {
+                                viewModel.setServerPassword("")
+                                showPasswordDialog = false
+                                Toast
+                                    .makeText(
+                                        context,
+                                        context.getString(R.string.password_removed),
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                            },
+                        ) {
+                            Text(stringResource(R.string.remove_password))
+                        }
+                    }
+                    androidx.compose.material3.TextButton(onClick = { showPasswordDialog = false }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
+            },
+        )
+    }
 }
 
 @OptIn(ExperimentalPermissionsApi::class)
@@ -866,6 +1052,130 @@ private fun PortConfigurationCard(
                 Icon(
                     TablerIcons.Edit,
                     contentDescription = stringResource(R.string.change_port),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun InactivityTimeoutCard(
+    timeoutMinutes: Int,
+    onChangeTimeout: () -> Unit,
+) {
+    val hapticFeedback = LocalHapticFeedback.current
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            ),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+        ) {
+            Icon(
+                TablerIcons.Clock,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp),
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.server_inactivity_timeout),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text =
+                        if (timeoutMinutes <= 0) {
+                            stringResource(R.string.server_inactivity_timeout_disabled)
+                        } else {
+                            stringResource(R.string.server_inactivity_timeout_minutes, timeoutMinutes)
+                        },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+            IconButton(
+                onClick = {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onChangeTimeout()
+                },
+                modifier = Modifier.size(40.dp),
+            ) {
+                Icon(
+                    TablerIcons.Edit,
+                    contentDescription = stringResource(R.string.change_inactivity_timeout),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PasswordConfigurationCard(
+    serverPassword: String,
+    onChangePassword: () -> Unit,
+) {
+    val hapticFeedback = LocalHapticFeedback.current
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            ),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+        ) {
+            Icon(
+                TablerIcons.Lock,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp),
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.server_password),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text =
+                        if (serverPassword.isEmpty()) {
+                            stringResource(R.string.server_password_not_set)
+                        } else {
+                            stringResource(R.string.server_password_set)
+                        },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+            IconButton(
+                onClick = {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onChangePassword()
+                },
+                modifier = Modifier.size(40.dp),
+            ) {
+                Icon(
+                    TablerIcons.Edit,
+                    contentDescription = stringResource(R.string.change_server_password),
                     tint = MaterialTheme.colorScheme.primary,
                 )
             }
