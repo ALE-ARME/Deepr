@@ -12,6 +12,7 @@ class LocalServerViewModel(
     val serverUrl = localServerRepository.serverUrl
     val serverPort = localServerRepository.serverPort
     val serverInactivityTimeoutMinutes = localServerRepository.serverInactivityTimeoutMinutes
+    val serverPassword = localServerRepository.serverPassword
 
     fun setServerPort(port: Int) {
         viewModelScope.launch {
@@ -22,6 +23,12 @@ class LocalServerViewModel(
     fun setServerInactivityTimeoutMinutes(minutes: Int) {
         viewModelScope.launch {
             localServerRepository.setServerInactivityTimeoutMinutes(minutes)
+        }
+    }
+
+    fun setServerPassword(password: String) {
+        viewModelScope.launch {
+            localServerRepository.setServerPassword(password)
         }
     }
 }

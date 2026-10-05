@@ -25,6 +25,8 @@ import io.ktor.http.URLProtocol
 import io.ktor.http.isSuccess
 import io.ktor.http.path
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.ApplicationCall
+import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.install
 import io.ktor.server.cio.CIO
@@ -114,6 +116,13 @@ open class LocalServerRepositoryImpl(
     override val serverInactivityTimeoutMinutes: StateFlow<Int> =
         _serverInactivityTimeoutMinutes.asStateFlow()
 
+    private val _serverPassword = MutableStateFlow("")
+
+    /**
+     * [StateFlow] providing the configured server password (empty string = no password required).
+     */
+    override val serverPassword: StateFlow<String> = _serverPassword.asStateFlow()
+
     private val lastActivityTime = AtomicLong(0L)
     private var inactivityJob: Job? = null
 
@@ -142,6 +151,12 @@ open class LocalServerRepositoryImpl(
                 _serverInactivityTimeoutMinutes.update { timeout }
             }
         }
+        // Load saved server password on initialization
+        CoroutineScope(Dispatchers.IO).launch {
+            preferenceDataStore.getServerPassword.collect { pwd ->
+                _serverPassword.update { pwd }
+            }
+        }
     }
 
     /**
@@ -163,6 +178,16 @@ open class LocalServerRepositoryImpl(
         val validMinutes = minutes.coerceAtLeast(0)
         _serverInactivityTimeoutMinutes.update { validMinutes }
         preferenceDataStore.setServerInactivityTimeoutMinutes(validMinutes)
+    }
+
+    /**
+     * Sets the server password and persists it to preferences.
+     * @param password The password (empty string disables password protection).
+     */
+    override suspend fun setServerPassword(password: String) {
+        val trimmed = password.trim()
+        _serverPassword.update { trimmed }
+        preferenceDataStore.setServerPassword(trimmed)
     }
 
     /**
@@ -198,8 +223,13 @@ open class LocalServerRepositoryImpl(
                     val activityTrackerPlugin =
                         createApplicationPlugin(name = "ActivityTracker") {
                             onCall { call ->
-                                if (!call.request.uri.startsWith("/api/private/status")) {
-                                    recordActivity()
+                                val path = call.request.uri.substringBefore("?")
+                                if (!path.startsWith("/api/private/status") &&
+                                    !path.startsWith("/api/auth/status")
+                                ) {
+                                    if (!path.startsWith("/api/") || isAuthorized(call)) {
+                                        recordActivity()
+                                    }
                                 }
                             }
                         }
@@ -215,7 +245,91 @@ open class LocalServerRepositoryImpl(
                         )
                     }
 
+                    intercept(ApplicationCallPipeline.Plugins) {
+                        val path = call.request.uri.substringBefore("?")
+                        if (path.startsWith("/api/") &&
+                            !path.startsWith("/api/auth/") &&
+                            !path.startsWith("/api/transfer/")
+                        ) {
+                            if (!isAuthorized(call)) {
+                                call.respond(
+                                    HttpStatusCode.Unauthorized,
+                                    ErrorResponse(
+                                        "Unauthorized: Password required. Provide Authorization: Bearer <password> or X-Server-Password header.",
+                                    ),
+                                )
+                                finish()
+                            }
+                        }
+                    }
+
                     routing {
+                        get("/api/auth/status") {
+                            call.respond(
+                                HttpStatusCode.OK,
+                                AuthStatusResponse(
+                                    requiresPassword = _serverPassword.value.isNotBlank(),
+                                    authenticated = isAuthorized(call),
+                                ),
+                            )
+                        }
+
+                        post("/api/auth/login") {
+                            try {
+                                val configuredPassword = _serverPassword.value
+                                if (configuredPassword.isBlank()) {
+                                    call.respond(
+                                        HttpStatusCode.OK,
+                                        AuthLoginResponse(
+                                            success = true,
+                                            message = "No password required",
+                                        ),
+                                    )
+                                    return@post
+                                }
+
+                                if (isAuthorized(call)) {
+                                    call.respond(
+                                        HttpStatusCode.OK,
+                                        AuthLoginResponse(
+                                            success = true,
+                                            message = "Authenticated",
+                                        ),
+                                    )
+                                    return@post
+                                }
+
+                                val body =
+                                    try {
+                                        call.receive<LoginRequest>()
+                                    } catch (_: Exception) {
+                                        null
+                                    }
+                                if (body != null && body.password == configuredPassword) {
+                                    call.respond(
+                                        HttpStatusCode.OK,
+                                        AuthLoginResponse(
+                                            success = true,
+                                            message = "Authenticated",
+                                        ),
+                                    )
+                                } else {
+                                    call.respond(
+                                        HttpStatusCode.Unauthorized,
+                                        AuthLoginResponse(
+                                            success = false,
+                                            error = "Invalid password",
+                                        ),
+                                    )
+                                }
+                            } catch (e: Exception) {
+                                Log.e("LocalServer", "Error during login check", e)
+                                call.respond(
+                                    HttpStatusCode.InternalServerError,
+                                    ErrorResponse("Error checking password: ${e.message}"),
+                                )
+                            }
+                        }
                         get("/") {
                             try {
                                 val languageCode = preferenceDataStore.getLanguageCode.first()
@@ -1229,6 +1343,47 @@ open class LocalServerRepositoryImpl(
             }
     }
 
+    private fun isAuthorized(call: ApplicationCall): Boolean {
+        val configuredPassword = _serverPassword.value
+        if (configuredPassword.isBlank()) return true
+
+        // 1. Check Authorization header: Bearer <password> or Basic <base64>
+        val authHeader = call.request.headers["Authorization"]
+        if (authHeader != null) {
+            if (authHeader.startsWith("Bearer ", ignoreCase = true)) {
+                val token = authHeader.substring(7).trim()
+                if (token == configuredPassword) return true
+            } else if (authHeader.startsWith("Basic ", ignoreCase = true)) {
+                try {
+                    val decoded =
+                        String(
+                            android.util.Base64.decode(
+                                authHeader.substring(6).trim(),
+                                android.util.Base64.DEFAULT,
+                            ),
+                        )
+                    val pwd = if (decoded.contains(":")) decoded.substringAfter(":") else decoded
+                    if (pwd == configuredPassword) return true
+                } catch (_: Exception) {
+                }
+            }
+        }
+
+        // 2. Check X-Server-Password header
+        val customHeader = call.request.headers["X-Server-Password"]
+        if (customHeader != null && customHeader == configuredPassword) {
+            return true
+        }
+
+        // 3. Check query parameters: ?password=<pwd> or ?auth=<pwd>
+        val queryPwd = call.request.queryParameters["password"] ?: call.request.queryParameters["auth"]
+        if (queryPwd != null && queryPwd == configuredPassword) {
+            return true
+        }
+
+        return false
+    }
+
     /**
      * Stops the embedded Ktor server.
      */
@@ -1704,4 +1859,22 @@ data class ServerInfoResponse(
 data class PrivateStatusResponse(
     val isUnlocked: Boolean,
     val status: String? = null,
+)
+
+@Serializable
+data class LoginRequest(
+    val password: String = "",
+)
+
+@Serializable
+data class AuthStatusResponse(
+    val requiresPassword: Boolean,
+    val authenticated: Boolean,
+)
+
+@Serializable
+data class AuthLoginResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val error: String? = null,
 )

@@ -301,6 +301,9 @@ class CsvBookmarkImporter(
         settings[Constants.Settings.SERVER_INACTIVITY_TIMEOUT]?.toIntOrNull()?.let {
             appPreferenceDataStore.setServerInactivityTimeoutMinutes(it)
         }
+        settings[Constants.Settings.SERVER_PASSWORD]?.let {
+            appPreferenceDataStore.setServerPassword(it)
+        }
         settings[Constants.Settings.DEFAULT_PROFILE_NAME]?.let { name ->
             val profile = deeprQueries.getProfileByName(name, 0L).executeAsOneOrNull()
             if (profile != null) {

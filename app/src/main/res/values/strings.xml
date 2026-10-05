@@ -279,6 +279,16 @@
     <string name="inactivity_timeout_minutes_label">Minutes of inactivity (0 = disabled)</string>
     <string name="invalid_timeout_number">Invalid duration. Please enter 0 or greater.</string>
     <string name="change_inactivity_timeout">Change Inactivity Timeout</string>
+    <string name="server_password">Server password</string>
+    <string name="server_password_not_set">Not set (Access is open)</string>
+    <string name="server_password_set">Protected with password</string>
+    <string name="change_server_password">Change Server Password</string>
+    <string name="server_password_description">Require a password to access the server web interface and API endpoints. Leave blank to disable.</string>
+    <string name="server_password_placeholder">Enter password</string>
+    <string name="hide_password">Hide password</string>
+    <string name="show_password">Show password</string>
+    <string name="remove_password">Remove password</string>
+    <string name="password_removed">Password removed</string>
 
     
     <string name="transfer_link_server">Transfer Link Server</string>
