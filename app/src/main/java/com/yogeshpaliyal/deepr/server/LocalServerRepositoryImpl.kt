@@ -11,7 +11,6 @@ import com.yogeshpaliyal.deepr.Tags
 import com.yogeshpaliyal.deepr.analytics.AnalyticsManager
 import com.yogeshpaliyal.deepr.data.NetworkRepository
 import com.yogeshpaliyal.deepr.preference.AppPreferenceDataStore
-import com.yogeshpaliyal.deepr.util.GLOBAL_TAG_PROFILE_ID
 import com.yogeshpaliyal.deepr.util.LanguageUtil
 import com.yogeshpaliyal.deepr.viewmodel.AccountViewModel
 import io.ktor.client.HttpClient
@@ -728,12 +727,18 @@ open class LocalServerRepositoryImpl(
                                     )
                                     deeprQueries.deleteLinkRelations(id)
                                     request.tags.forEach { tagData ->
-                                        val tagProfileId = tagData.resolveProfileId()
-                                        deeprQueries.insertTag(tagData.name, isPrivate, tagProfileId)
+                                        val isTagGlobal = tagData.isTagGlobal()
+                                        val pIds = tagData.resolveProfileIds()
+                                        deeprQueries.insertTag(tagData.name, isPrivate, if (isTagGlobal) 1L else 0L)
                                         val tag =
                                             deeprQueries
-                                                .getTagByName(tagData.name, isPrivate, tagProfileId)
+                                                .getTagByName(tagData.name, isPrivate)
                                                 .executeAsOne()
+                                        if (!isTagGlobal) {
+                                            pIds.forEach { pId ->
+                                                deeprQueries.insertTagProfile(tag.id, pId)
+                                            }
+                                        }
                                         deeprQueries.addTagToLink(linkId = id, tagId = tag.id)
                                     }
                                 }
@@ -810,15 +815,19 @@ open class LocalServerRepositoryImpl(
                                         parsedId
                                     }
                                 val isPrivate = 0L
-                                val allTags = deeprQueries.getAllTagsWithCount(profileId = profileId, isPrivate = isPrivate).executeAsList()
+                                val allTags = deeprQueries.getAllTagsWithCount(isPrivate = isPrivate, profileId = profileId).executeAsList()
+                                val tagProfilesList = deeprQueries.getAllTagProfiles().executeAsList()
+                                val tagProfilesMap = tagProfilesList.groupBy({ it.tagId }, { it.profileId })
                                 val response =
                                     allTags.map { tag ->
+                                        val pIds = tagProfilesMap[tag.id] ?: emptyList()
                                         TagResponse(
                                             id = tag.id,
                                             name = tag.name,
                                             count = tag.linkCount.toInt(),
-                                            profileId = tag.profileId,
-                                            isGlobal = tag.profileId == GLOBAL_TAG_PROFILE_ID,
+                                            isGlobal = tag.isGlobal == 1L,
+                                            profileIds = pIds,
+                                            profileId = pIds.firstOrNull() ?: 0L,
                                         )
                                     }
                                 call.respond(HttpStatusCode.OK, response)
@@ -842,36 +851,53 @@ open class LocalServerRepositoryImpl(
 
                                 val isPrivate = 0L
 
-                                // A null or zero profileId creates a global tag, available to every profile
-                                val tagProfileId = request.profileId?.takeIf { it > 0 } ?: GLOBAL_TAG_PROFILE_ID
-                                if (tagProfileId != GLOBAL_TAG_PROFILE_ID) {
-                                    val profile = deeprQueries.getProfileById(tagProfileId).executeAsOneOrNull()
-                                    if (profile == null) {
-                                        call.respond(
-                                            HttpStatusCode.BadRequest,
-                                            ErrorResponse("Profile not found: $tagProfileId"),
-                                        )
-                                        return@post
-                                    }
-                                    if (profile.isPrivate == 1L) {
-                                        call.respond(
-                                            HttpStatusCode.Forbidden,
-                                            ErrorResponse("Private profiles are not accessible from the web interface."),
-                                        )
-                                        return@post
+                                val effectiveIsGlobal =
+                                    request.isGlobal ?: (
+                                        request.profileIds == null &&
+                                            (request.profileId == null || request.profileId == 0L)
+                                    )
+                                val requestedProfileIds =
+                                    request.profileIds ?: request.profileId?.takeIf { it > 0 }?.let { listOf(it) } ?: emptyList()
+
+                                if (!effectiveIsGlobal) {
+                                    for (pId in requestedProfileIds) {
+                                        val profile = deeprQueries.getProfileById(pId).executeAsOneOrNull()
+                                        if (profile == null) {
+                                            call.respond(
+                                                HttpStatusCode.BadRequest,
+                                                ErrorResponse("Profile not found: $pId"),
+                                            )
+                                            return@post
+                                        }
+                                        if (profile.isPrivate == 1L) {
+                                            call.respond(
+                                                HttpStatusCode.Forbidden,
+                                                ErrorResponse("Private profiles are not accessible from the web interface."),
+                                            )
+                                            return@post
+                                        }
                                     }
                                 }
 
-                                deeprQueries.insertTag(name, isPrivate, tagProfileId)
-                                val tag = deeprQueries.getTagByName(name, isPrivate, tagProfileId).executeAsOne()
+                                deeprQueries.transaction {
+                                    deeprQueries.insertTag(name, isPrivate, if (effectiveIsGlobal) 1L else 0L)
+                                    val tag = deeprQueries.getTagByName(name, isPrivate).executeAsOne()
+                                    if (!effectiveIsGlobal) {
+                                        requestedProfileIds.forEach { pId ->
+                                            deeprQueries.insertTagProfile(tag.id, pId)
+                                        }
+                                    }
+                                }
+                                val tag = deeprQueries.getTagByName(name, isPrivate).executeAsOne()
                                 call.respond(
                                     HttpStatusCode.Created,
                                     TagResponse(
                                         id = tag.id,
                                         name = tag.name,
                                         count = 0,
-                                        profileId = tag.profileId,
-                                        isGlobal = tag.profileId == GLOBAL_TAG_PROFILE_ID,
+                                        isGlobal = effectiveIsGlobal,
+                                        profileIds = requestedProfileIds,
+                                        profileId = requestedProfileIds.firstOrNull() ?: 0L,
                                     ),
                                 )
                             } catch (e: Exception) {
@@ -1044,13 +1070,18 @@ open class LocalServerRepositoryImpl(
                                         )
                                     }
 
+                                val tagProfilesList = deeprQueries.getAllTagProfiles().executeAsList()
+                                val tagProfilesMap = tagProfilesList.groupBy({ it.tagId }, { it.profileId })
                                 val dbTags =
                                     deeprQueries.listAllTagsAsc().executeAsList().map {
+                                        val pIds = tagProfilesMap[it.id] ?: emptyList()
                                         TagExportData(
                                             id = it.id,
                                             name = it.name,
                                             isPrivate = it.isPrivate,
-                                            profileId = it.profileId,
+                                            isGlobal = it.isGlobal == 1L,
+                                            profileIds = pIds,
+                                            profileId = pIds.firstOrNull() ?: 0L,
                                         )
                                     }
 
@@ -1408,17 +1439,26 @@ open class LocalServerRepositoryImpl(
 
             val tagIdMap = mutableMapOf<Long, Long>()
             pkg.tags.forEach { tag ->
-                // The exported profile ids belong to the source device, remap them
-                val tagProfileId = profileIdMap[tag.profileId] ?: GLOBAL_TAG_PROFILE_ID
-                val existing = deeprQueries.getTagByName(tag.name, tag.isPrivate, tagProfileId).executeAsOneOrNull()
-                if (existing != null) {
-                    tagIdMap[tag.id] = existing.id
-                } else {
-                    deeprQueries.insertTag(tag.name, tag.isPrivate, tagProfileId)
-                    val newTag = deeprQueries.getTagByName(tag.name, tag.isPrivate, tagProfileId).executeAsOneOrNull()
-                    if (newTag != null) {
-                        tagIdMap[tag.id] = newTag.id
+                val isTagGlobal = tag.isGlobal || (tag.profileIds.isEmpty() && tag.profileId == 0L)
+                val mappedProfileIds =
+                    if (!isTagGlobal) {
+                        val rawIds = if (tag.profileIds.isNotEmpty()) tag.profileIds else listOf(tag.profileId)
+                        rawIds.mapNotNull { profileIdMap[it] }
+                    } else {
+                        emptyList()
                     }
+                val existing = deeprQueries.getTagByName(tag.name, tag.isPrivate).executeAsOneOrNull()
+                val targetTagId =
+                    if (existing != null) {
+                        existing.id
+                    } else {
+                        deeprQueries.insertTag(tag.name, tag.isPrivate, if (isTagGlobal) 1L else 0L)
+                        val newTag = deeprQueries.getTagByName(tag.name, tag.isPrivate).executeAsOneOrNull()
+                        newTag?.id ?: tag.id
+                    }
+                tagIdMap[tag.id] = targetTagId
+                mappedProfileIds.forEach { pId ->
+                    deeprQueries.insertTagProfile(targetTagId, pId)
                 }
             }
 
@@ -1476,10 +1516,10 @@ open class LocalServerRepositoryImpl(
                     val insertedId = deeprQueries.lastInsertRowId().executeAsOne()
 
                     deeplink.tags.forEach { tagName ->
-                        deeprQueries.insertTag(name = tagName, isPrivate = 0L, profileId = GLOBAL_TAG_PROFILE_ID)
+                        deeprQueries.insertTag(name = tagName, isPrivate = 0L, isGlobal = 1L)
                         val tag =
                             deeprQueries
-                                .getTagByName(tagName, 0L, GLOBAL_TAG_PROFILE_ID)
+                                .getTagByName(tagName, 0L)
                                 .executeAsOne()
                         deeprQueries.addTagToLink(
                             linkId = insertedId,
@@ -1599,21 +1639,18 @@ data class LinkResponse(
 data class TagData(
     val id: Long,
     val name: String,
-    /**
-     * Profile the tag is bound to. When omitted, `null` or `0` the tag is
-     * global and therefore available to every profile.
-     */
+    val isGlobal: Boolean? = null,
+    val profileIds: List<Long>? = null,
     val profileId: Long? = null,
 ) {
-    /**
-     * Resolves the requested scope into a valid [Tags.profileId].
-     */
-    fun resolveProfileId(): Long = profileId?.takeIf { it > 0 } ?: GLOBAL_TAG_PROFILE_ID
+    fun isTagGlobal(): Boolean = isGlobal ?: (profileIds == null && (profileId == null || profileId == 0L))
+
+    fun resolveProfileIds(): List<Long> = profileIds ?: profileId?.takeIf { it > 0 }?.let { listOf(it) } ?: emptyList()
 
     /**
      * Converts this [TagData] to a [Tags] database object.
      */
-    fun toDbTag() = Tags(id, name, 0L, resolveProfileId())
+    fun toDbTag() = Tags(id, name, 0L, if (isTagGlobal()) 1L else 0L)
 }
 
 /**
@@ -1622,10 +1659,8 @@ data class TagData(
 @Serializable
 data class AddTagRequest(
     val name: String,
-    /**
-     * Optional profile the tag is bound to. Omit it, or send `0`, to create a
-     * global tag available to every profile.
-     */
+    val isGlobal: Boolean? = null,
+    val profileIds: List<Long>? = null,
     val profileId: Long? = null,
 )
 
@@ -1696,11 +1731,9 @@ data class TagResponse(
     val id: Long,
     val name: String,
     val count: Int,
-    /**
-     * `0` when the tag is global, otherwise the id of the profile it is bound to.
-     */
-    val profileId: Long = 0L,
     val isGlobal: Boolean = true,
+    val profileIds: List<Long> = emptyList(),
+    val profileId: Long = 0L,
 )
 
 /**
@@ -1751,9 +1784,8 @@ data class TagExportData(
     val id: Long,
     val name: String,
     val isPrivate: Long,
-    /**
-     * `0` when the tag is global, otherwise the id of the profile it is bound to.
-     */
+    val isGlobal: Boolean = true,
+    val profileIds: List<Long> = emptyList(),
     val profileId: Long = 0L,
 )
 

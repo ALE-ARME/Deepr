@@ -9,7 +9,6 @@ import com.yogeshpaliyal.deepr.DeeprQueries
 import com.yogeshpaliyal.deepr.backup.ImportResult
 import com.yogeshpaliyal.deepr.preference.AppPreferenceDataStore
 import com.yogeshpaliyal.deepr.util.Constants
-import com.yogeshpaliyal.deepr.util.GLOBAL_TAG_PROFILE_ID
 import com.yogeshpaliyal.deepr.util.RequestResult
 import kotlinx.coroutines.flow.first
 import java.io.IOException
@@ -122,12 +121,11 @@ class CsvBookmarkImporter(
                                                         .map { it.trim() }
                                                         .filter { it.isNotEmpty() }
                                                 tagNames.forEach { tagName ->
-                                                    // Insert tag if it doesn't exist
-                                                    deeprQueries.insertTag(tagName, 0L, GLOBAL_TAG_PROFILE_ID)
+                                                    deeprQueries.insertTag(tagName, 0L, 1L)
                                                     // Get tag ID and link it
                                                     val tag =
                                                         deeprQueries
-                                                            .getTagByName(tagName, 0L, GLOBAL_TAG_PROFILE_ID)
+                                                            .getTagByName(tagName, 0L)
                                                             .executeAsOneOrNull()
                                                     if (tag != null) {
                                                         deeprQueries.addTagToLink(linkId, tag.id)
@@ -207,10 +205,10 @@ class CsvBookmarkImporter(
                                                         .map { it.trim() }
                                                         .filter { it.isNotEmpty() }
                                                 tagNames.forEach { tagName ->
-                                                    deeprQueries.insertTag(tagName, 0L, GLOBAL_TAG_PROFILE_ID)
+                                                    deeprQueries.insertTag(tagName, 0L, 1L)
                                                     val tag =
                                                         deeprQueries
-                                                            .getTagByName(tagName, 0L, GLOBAL_TAG_PROFILE_ID)
+                                                            .getTagByName(tagName, 0L)
                                                             .executeAsOneOrNull()
                                                     if (tag != null) {
                                                         deeprQueries.addTagToLink(linkId, tag.id)

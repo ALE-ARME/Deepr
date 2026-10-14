@@ -117,24 +117,72 @@ class LinkRepositoryImpl(
     override fun getAllTagsWithCount(
         profileId: Long,
         isPrivate: Long,
-    ): Query<GetAllTagsWithCount> = deeprQueries.getAllTagsWithCount(profileId, isPrivate)
+    ): Query<GetAllTagsWithCount> = deeprQueries.getAllTagsWithCount(isPrivate, profileId)
 
     override suspend fun getTagByName(
         tagName: String,
         isPrivate: Long,
-        profileId: Long,
     ): Tags? =
         withContext(Dispatchers.IO) {
-            deeprQueries.getTagByName(tagName, isPrivate, profileId).executeAsOneOrNull()
+            deeprQueries.getTagByName(tagName, isPrivate).executeAsOneOrNull()
         }
+
+    override suspend fun insertTag(
+        tagName: String,
+        isPrivate: Long,
+        isGlobal: Boolean,
+        profileIds: List<Long>,
+    ) {
+        withContext(Dispatchers.IO) {
+            deeprQueries.transaction {
+                deeprQueries.insertTag(tagName, isPrivate, if (isGlobal) 1L else 0L)
+                if (!isGlobal && profileIds.isNotEmpty()) {
+                    val tag = deeprQueries.getTagByName(tagName, isPrivate).executeAsOneOrNull()
+                    if (tag != null) {
+                        profileIds.forEach { profileId ->
+                            deeprQueries.insertTagProfile(tag.id, profileId)
+                        }
+                    }
+                }
+            }
+        }
+        scheduleAutoBackup()
+    }
 
     override suspend fun insertTag(
         tagName: String,
         isPrivate: Long,
         profileId: Long,
     ) {
+        insertTag(
+            tagName = tagName,
+            isPrivate = isPrivate,
+            isGlobal = profileId == com.yogeshpaliyal.deepr.util.GLOBAL_TAG_PROFILE_ID,
+            profileIds =
+                if (profileId != com.yogeshpaliyal.deepr.util.GLOBAL_TAG_PROFILE_ID) {
+                    listOf(profileId)
+                } else {
+                    emptyList()
+                },
+        )
+    }
+
+    override suspend fun updateTag(
+        id: Long,
+        name: String,
+        isGlobal: Boolean,
+        profileIds: List<Long>,
+    ) {
         withContext(Dispatchers.IO) {
-            deeprQueries.insertTag(tagName, isPrivate, profileId)
+            deeprQueries.transaction {
+                deeprQueries.updateTag(name, if (isGlobal) 1L else 0L, id)
+                deeprQueries.deleteTagProfiles(id)
+                if (!isGlobal) {
+                    profileIds.forEach { profileId ->
+                        deeprQueries.insertTagProfile(id, profileId)
+                    }
+                }
+            }
         }
         scheduleAutoBackup()
     }
@@ -144,10 +192,17 @@ class LinkRepositoryImpl(
         profileId: Long,
         id: Long,
     ) {
-        withContext(Dispatchers.IO) {
-            deeprQueries.updateTag(name, profileId, id)
-        }
-        scheduleAutoBackup()
+        updateTag(
+            id = id,
+            name = name,
+            isGlobal = profileId == com.yogeshpaliyal.deepr.util.GLOBAL_TAG_PROFILE_ID,
+            profileIds =
+                if (profileId != com.yogeshpaliyal.deepr.util.GLOBAL_TAG_PROFILE_ID) {
+                    listOf(profileId)
+                } else {
+                    emptyList()
+                },
+        )
     }
 
     override suspend fun deleteTag(id: Long) {
@@ -170,6 +225,13 @@ class LinkRepositoryImpl(
         }
         scheduleAutoBackup()
     }
+
+    override suspend fun getProfilesForTag(tagId: Long): List<Long> =
+        withContext(Dispatchers.IO) {
+            deeprQueries.getProfilesForTag(tagId).executeAsList()
+        }
+
+    override fun getAllTagProfiles(): Query<com.yogeshpaliyal.deepr.TagProfiles> = deeprQueries.getAllTagProfiles()
 
     // Link-Tag operations
     override suspend fun addTagToLink(

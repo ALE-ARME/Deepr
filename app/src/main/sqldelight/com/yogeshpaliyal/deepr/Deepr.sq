@@ -25,18 +25,26 @@ profileId INTEGER NOT NULL DEFAULT 1,
 FOREIGN KEY (profileId) REFERENCES Profile(id) ON DELETE CASCADE
 );
 
--- profileId = 0 means the tag is global and therefore visible from every profile.
--- A value greater than 0 binds the tag to the profile with that id.
+-- isGlobal = 1 means the tag is global and visible from every profile.
+-- isGlobal = 0 means the tag is visible only from the profiles it is bound to in TagProfiles.
 CREATE TABLE Tags (
 id INTEGER PRIMARY KEY NOT NULL,
 name TEXT NOT NULL,
 isPrivate INTEGER NOT NULL DEFAULT 0,
-profileId INTEGER NOT NULL DEFAULT 0,
-UNIQUE(name, isPrivate, profileId)
+isGlobal INTEGER NOT NULL DEFAULT 1,
+UNIQUE(name, isPrivate)
 );
 
-CREATE INDEX IF NOT EXISTS idx_tags_profileId
-ON Tags(profileId);
+CREATE TABLE TagProfiles (
+tagId INTEGER NOT NULL,
+profileId INTEGER NOT NULL,
+PRIMARY KEY (tagId, profileId),
+FOREIGN KEY (tagId) REFERENCES Tags(id) ON DELETE CASCADE,
+FOREIGN KEY (profileId) REFERENCES Profile(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_tagprofiles_profileId
+ON TagProfiles(profileId);
 
 CREATE TABLE LinkTags (
 linkId INTEGER NOT NULL,
@@ -230,17 +238,21 @@ SELECT * FROM Deepr WHERE id = ?;
 
 -- Tag operations
 insertTag:
-INSERT OR IGNORE INTO Tags (name, isPrivate, profileId) VALUES (?, ?, ?);
+INSERT OR IGNORE INTO Tags (name, isPrivate, isGlobal) VALUES (?, ?, ?);
 
 getTagByName:
-SELECT * FROM Tags WHERE name = :name AND isPrivate = :isPrivate AND profileId = :profileId;
+SELECT * FROM Tags WHERE name = :name AND isPrivate = :isPrivate;
 
 getTagById:
 SELECT * FROM Tags WHERE id = ?;
 
--- Global tags (profileId = 0) plus the ones bound to the given profile
+-- Global tags (isGlobal = 1) plus the ones bound to the given profile in TagProfiles
 getAllTags:
-SELECT * FROM Tags WHERE isPrivate = :isPrivate AND (profileId = 0 OR profileId = :profileId) ORDER BY name;
+SELECT DISTINCT Tags.* FROM Tags
+LEFT JOIN TagProfiles ON Tags.id = TagProfiles.tagId
+WHERE Tags.isPrivate = :isPrivate
+  AND (Tags.isGlobal = 1 OR TagProfiles.profileId = :profileId)
+ORDER BY Tags.name;
 
 listAllTagsAsc:
 SELECT * FROM Tags ORDER BY name ASC;
@@ -248,19 +260,20 @@ SELECT * FROM Tags ORDER BY name ASC;
 listAllLinkTags:
 SELECT * FROM LinkTags;
 
--- Global tags (profileId = 0) plus the ones bound to the given profile
+-- Global tags (isGlobal = 1) plus the ones bound to the given profile
 getAllTagsWithCount:
 SELECT 
   Tags.id,
   Tags.name,
-  Tags.profileId,
+  Tags.isGlobal,
   COUNT(DISTINCT CASE WHEN Deepr.profileId = :profileId THEN LinkTags.linkId END) AS linkCount
 FROM Tags
+LEFT JOIN TagProfiles ON Tags.id = TagProfiles.tagId
 LEFT JOIN LinkTags ON Tags.id = LinkTags.tagId
 LEFT JOIN Deepr ON LinkTags.linkId = Deepr.id
 WHERE Tags.isPrivate = :isPrivate
-  AND (Tags.profileId = 0 OR Tags.profileId = :profileId)
-GROUP BY Tags.id, Tags.name, Tags.profileId
+  AND (Tags.isGlobal = 1 OR TagProfiles.profileId = :profileId)
+GROUP BY Tags.id, Tags.name, Tags.isGlobal
 ORDER BY linkCount DESC, Tags.name;
 
 countOfLinks:
@@ -287,18 +300,37 @@ DELETE FROM Tags WHERE id = ?;
 deleteTagRelations:
 DELETE FROM LinkTags WHERE tagId = ?;
 
--- Tags bound to a profile are removed together with the profile itself
+-- Tags bound to a profile are removed together with the profile itself only if not global and not bound to any other profile
 deleteTagsForProfile:
-DELETE FROM Tags WHERE profileId = ?;
+DELETE FROM Tags
+WHERE isGlobal = 0
+  AND id IN (SELECT tagId FROM TagProfiles WHERE profileId = :profileId)
+  AND id NOT IN (SELECT tagId FROM TagProfiles WHERE profileId != :profileId);
 
 updateTag:
-UPDATE Tags SET name = ? , profileId = ? WHERE id = ?;
+UPDATE Tags SET name = ?, isGlobal = ? WHERE id = ?;
 
 getTagsForLink:
 SELECT Tags.* FROM Tags INNER JOIN LinkTags ON Tags.id = LinkTags.tagId WHERE LinkTags.linkId = ? ORDER BY Tags.name;
 
 hasTagLinks:
 SELECT COUNT(*) FROM LinkTags WHERE tagId = ?;
+
+-- TagProfiles operations
+insertTagProfile:
+INSERT OR IGNORE INTO TagProfiles (tagId, profileId) VALUES (?, ?);
+
+deleteTagProfiles:
+DELETE FROM TagProfiles WHERE tagId = ?;
+
+deleteTagProfile:
+DELETE FROM TagProfiles WHERE tagId = ? AND profileId = ?;
+
+getProfilesForTag:
+SELECT profileId FROM TagProfiles WHERE tagId = ?;
+
+getAllTagProfiles:
+SELECT * FROM TagProfiles;
 
 -- Deeplink Open Log operations
 insertDeeprOpenLog:

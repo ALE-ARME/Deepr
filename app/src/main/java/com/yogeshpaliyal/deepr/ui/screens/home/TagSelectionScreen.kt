@@ -69,12 +69,10 @@ import com.yogeshpaliyal.deepr.DeeprQueries
 import com.yogeshpaliyal.deepr.GetAllTagsWithCount
 import com.yogeshpaliyal.deepr.Profile
 import com.yogeshpaliyal.deepr.R
-import com.yogeshpaliyal.deepr.Tags
 import com.yogeshpaliyal.deepr.ui.TopLevelRoute
 import com.yogeshpaliyal.deepr.ui.components.ClearInputIconButton
 import com.yogeshpaliyal.deepr.ui.components.TagScopeBadge
 import com.yogeshpaliyal.deepr.ui.components.TagScopeDropdown
-import com.yogeshpaliyal.deepr.util.GLOBAL_TAG_PROFILE_ID
 import com.yogeshpaliyal.deepr.viewmodel.AccountViewModel
 import compose.icons.TablerIcons
 import compose.icons.tablericons.Edit
@@ -103,13 +101,18 @@ object TagSelectionScreen : TopLevelRoute {
         var isSearchVisible by remember { mutableStateOf(false) }
         val tagsWithCount by viewModel.allTagsWithCount.collectAsStateWithLifecycle()
         val allProfiles by viewModel.allProfiles.collectAsStateWithLifecycle()
+        val tagProfiles by viewModel.tagProfiles.collectAsStateWithLifecycle()
         val context = LocalContext.current
         val deeprQueries: DeeprQueries = koinInject()
         var isTagEditEnable by remember { mutableStateOf<GetAllTagsWithCount?>(null) }
+        var editTagName by remember { mutableStateOf("") }
+        var editTagIsGlobal by remember { mutableStateOf(true) }
+        var editTagProfileIds by remember { mutableStateOf(setOf<Long>()) }
         var isTagDeleteEnable by remember { mutableStateOf<GetAllTagsWithCount?>(null) }
         var tagEditError by remember { mutableStateOf<String?>(null) }
-        // Scope of the tag being created, GLOBAL_TAG_PROFILE_ID means global
-        var newTagScopeProfileId by remember { mutableStateOf(GLOBAL_TAG_PROFILE_ID) }
+        // Scope of the tag being created
+        var newTagIsGlobal by remember { mutableStateOf(true) }
+        var newTagProfileIds by remember { mutableStateOf(setOf<Long>()) }
 
         // Filter tags based on search query
         val filteredTags =
@@ -273,8 +276,7 @@ object TagSelectionScreen : TopLevelRoute {
                                                     it.name.equals(
                                                         trimmedTagName,
                                                         ignoreCase = true,
-                                                    ) &&
-                                                        it.profileId == newTagScopeProfileId
+                                                    )
                                                 }
 
                                             if (existingTag != null) {
@@ -285,8 +287,14 @@ object TagSelectionScreen : TopLevelRoute {
                                                         Toast.LENGTH_SHORT,
                                                     ).show()
                                             } else {
-                                                viewModel.insertTag(trimmedTagName, newTagScopeProfileId)
+                                                viewModel.insertTag(
+                                                    tagName = trimmedTagName,
+                                                    isGlobal = newTagIsGlobal,
+                                                    profileIds = newTagProfileIds.toList(),
+                                                )
                                                 newTagName = ""
+                                                newTagIsGlobal = true
+                                                newTagProfileIds = emptySet()
                                                 Toast
                                                     .makeText(
                                                         context,
@@ -306,11 +314,14 @@ object TagSelectionScreen : TopLevelRoute {
                                 }
                             }
 
-                            // A tag is either global or bound to a single profile
                             TagScopeDropdown(
-                                selectedProfileId = newTagScopeProfileId,
+                                isGlobal = newTagIsGlobal,
+                                selectedProfileIds = newTagProfileIds,
                                 profiles = allProfiles,
-                                onProfileSelected = { newTagScopeProfileId = it },
+                                onScopeChanged = { isGlobal, ids ->
+                                    newTagIsGlobal = isGlobal
+                                    newTagProfileIds = ids
+                                },
                             )
                         }
                     }
@@ -438,8 +449,15 @@ object TagSelectionScreen : TopLevelRoute {
                     ) { tag ->
                         TagItem(
                             tag = tag,
+                            profileIds = tagProfiles[tag.id] ?: emptySet(),
                             profiles = allProfiles,
-                            onEditClick = { isTagEditEnable = tag },
+                            onEditClick = {
+                                isTagEditEnable = tag
+                                editTagName = tag.name
+                                editTagIsGlobal = tag.isGlobal == 1L
+                                editTagProfileIds = tagProfiles[tag.id] ?: emptySet()
+                                tagEditError = null
+                            },
                             onDeleteClick = { isTagDeleteEnable = tag },
                         )
                     }
@@ -475,9 +493,9 @@ object TagSelectionScreen : TopLevelRoute {
                     text = {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             OutlinedTextField(
-                                value = tag.name,
+                                value = editTagName,
                                 onValueChange = {
-                                    isTagEditEnable = tag.copy(name = it)
+                                    editTagName = it
                                     tagEditError = null
                                 },
                                 modifier = Modifier.fillMaxWidth(),
@@ -500,10 +518,10 @@ object TagSelectionScreen : TopLevelRoute {
                                     )
                                 },
                                 trailingIcon =
-                                    if (isTagEditEnable?.name?.isNotBlank() == true) {
+                                    if (editTagName.isNotBlank()) {
                                         {
                                             ClearInputIconButton(
-                                                onClick = { isTagEditEnable = tag.copy(name = "") },
+                                                onClick = { editTagName = "" },
                                             )
                                         }
                                     } else {
@@ -511,12 +529,13 @@ object TagSelectionScreen : TopLevelRoute {
                                     },
                             )
 
-                            // The tag can be moved between the global scope and a profile
                             TagScopeDropdown(
-                                selectedProfileId = isTagEditEnable?.profileId ?: GLOBAL_TAG_PROFILE_ID,
+                                isGlobal = editTagIsGlobal,
+                                selectedProfileIds = editTagProfileIds,
                                 profiles = allProfiles,
-                                onProfileSelected = { scopeProfileId ->
-                                    isTagEditEnable = isTagEditEnable?.copy(profileId = scopeProfileId)
+                                onScopeChanged = { isGlobal, ids ->
+                                    editTagIsGlobal = isGlobal
+                                    editTagProfileIds = ids
                                     tagEditError = null
                                 },
                             )
@@ -525,23 +544,20 @@ object TagSelectionScreen : TopLevelRoute {
                     confirmButton = {
                         Button(
                             onClick = {
-                                val trimmedName = isTagEditEnable?.name?.trim() ?: ""
+                                val trimmedName = editTagName.trim()
                                 if (trimmedName.isBlank()) {
                                     tagEditError = "Tag name cannot be empty"
                                     return@Button
                                 }
 
-                                val editingTag = isTagEditEnable
                                 val result =
                                     runBlocking {
                                         try {
                                             viewModel.updateTag(
-                                                Tags(
-                                                    tag.id,
-                                                    trimmedName,
-                                                    if (isPrivateMode) 1L else 0L,
-                                                    editingTag?.profileId ?: GLOBAL_TAG_PROFILE_ID,
-                                                ),
+                                                id = tag.id,
+                                                name = trimmedName,
+                                                isGlobal = editTagIsGlobal,
+                                                profileIds = editTagProfileIds.toList(),
                                             )
                                             Result.success(true)
                                         } catch (e: Exception) {
@@ -571,7 +587,7 @@ object TagSelectionScreen : TopLevelRoute {
                                         ).show()
                                 }
                             },
-                            enabled = isTagEditEnable?.name?.isNotBlank() == true,
+                            enabled = editTagName.isNotBlank(),
                         ) {
                             Text(stringResource(R.string.save))
                         }
@@ -706,6 +722,7 @@ object TagSelectionScreen : TopLevelRoute {
 @Composable
 private fun TagItem(
     tag: GetAllTagsWithCount,
+    profileIds: Set<Long>,
     profiles: List<Profile>,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
@@ -768,7 +785,8 @@ private fun TagItem(
                         )
                     }
                     TagScopeBadge(
-                        profileId = tag.profileId,
+                        isGlobal = tag.isGlobal == 1L,
+                        profileIds = profileIds,
                         profiles = profiles,
                     )
                 }

@@ -1,0 +1,65 @@
+-- Migration 13: support assigning tags to multiple profiles via TagProfiles table.
+-- Tags now have isGlobal (1 = global, 0 = profile-specific).
+-- Specific profile associations are stored in the TagProfiles table.
+
+DROP INDEX IF EXISTS idx_tags_profileId;
+
+CREATE TABLE TagProfiles (
+tagId INTEGER NOT NULL,
+profileId INTEGER NOT NULL,
+PRIMARY KEY (tagId, profileId),
+FOREIGN KEY (tagId) REFERENCES Tags(id) ON DELETE CASCADE,
+FOREIGN KEY (profileId) REFERENCES Profile(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_tagprofiles_profileId
+ON TagProfiles(profileId);
+
+CREATE TABLE LinkTags_temp AS SELECT * FROM LinkTags;
+DROP TABLE LinkTags;
+
+CREATE TABLE TagMapping_temp AS
+SELECT id AS oldId,
+       (SELECT MIN(t2.id) FROM Tags t2 WHERE t2.name = Tags.name AND t2.isPrivate = Tags.isPrivate) AS newId
+FROM Tags;
+
+UPDATE LinkTags_temp
+SET tagId = (SELECT newId FROM TagMapping_temp WHERE oldId = LinkTags_temp.tagId);
+
+CREATE TABLE Tags_new (
+id INTEGER PRIMARY KEY NOT NULL,
+name TEXT NOT NULL,
+isPrivate INTEGER NOT NULL DEFAULT 0,
+isGlobal INTEGER NOT NULL DEFAULT 1,
+UNIQUE(name, isPrivate)
+);
+
+INSERT INTO Tags_new (id, name, isPrivate, isGlobal)
+SELECT
+    MIN(id),
+    name,
+    isPrivate,
+    CASE WHEN SUM(CASE WHEN profileId = 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END
+FROM Tags
+GROUP BY name, isPrivate;
+
+INSERT OR IGNORE INTO TagProfiles (tagId, profileId)
+SELECT m.newId, t.profileId
+FROM Tags t
+JOIN TagMapping_temp m ON t.id = m.oldId
+WHERE t.profileId > 0;
+
+DROP TABLE TagMapping_temp;
+DROP TABLE Tags;
+ALTER TABLE Tags_new RENAME TO Tags;
+
+CREATE TABLE LinkTags (
+linkId INTEGER NOT NULL,
+tagId INTEGER NOT NULL,
+PRIMARY KEY (linkId, tagId),
+FOREIGN KEY (linkId) REFERENCES Deepr(id) ON DELETE CASCADE,
+FOREIGN KEY (tagId) REFERENCES Tags(id) ON DELETE CASCADE
+);
+
+INSERT OR IGNORE INTO LinkTags SELECT DISTINCT linkId, tagId FROM LinkTags_temp;
+DROP TABLE LinkTags_temp;

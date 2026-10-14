@@ -76,7 +76,6 @@ import com.yogeshpaliyal.deepr.Tags
 import com.yogeshpaliyal.deepr.ui.LocalNavigator
 import com.yogeshpaliyal.deepr.ui.components.ClearInputIconButton
 import com.yogeshpaliyal.deepr.ui.components.TagScopeDropdown
-import com.yogeshpaliyal.deepr.util.GLOBAL_TAG_PROFILE_ID
 import com.yogeshpaliyal.deepr.util.QRScanner
 import com.yogeshpaliyal.deepr.util.isValidDeeplink
 import com.yogeshpaliyal.deepr.util.normalizeLink
@@ -189,9 +188,12 @@ fun AddLinkScreen(
         availableTags = viewModel.getAllTagsForProfile(selectedProfileId)
     }
 
-    // Scope of the tag being created, GLOBAL_TAG_PROFILE_ID means global
-    var newTagScopeProfileId by remember(selectedProfileId) {
-        mutableStateOf(GLOBAL_TAG_PROFILE_ID)
+    // Scope of the tag being created
+    var newTagIsGlobal by remember(selectedProfileId) {
+        mutableStateOf(false)
+    }
+    var newTagProfileIds by remember(selectedProfileId) {
+        mutableStateOf(setOf(selectedProfileId))
     }
 
     // Pre-populate with current profile if it's a new link and we are currently at default
@@ -218,7 +220,7 @@ fun AddLinkScreen(
                             ?.getOrNull(index)
                             ?.trim() ?: context.getString(R.string.unknown),
                         if (isPrivateMode) 1L else 0L,
-                        GLOBAL_TAG_PROFILE_ID,
+                        1L,
                     )
                 }
             selectedTags.clear()
@@ -881,9 +883,13 @@ fun AddLinkScreen(
                         shape = RoundedCornerShape(12.dp),
                     )
                     TagScopeDropdown(
-                        selectedProfileId = newTagScopeProfileId,
+                        isGlobal = newTagIsGlobal,
+                        selectedProfileIds = newTagProfileIds,
                         profiles = allProfiles,
-                        onProfileSelected = { newTagScopeProfileId = it },
+                        onScopeChanged = { isGlobal, ids ->
+                            newTagIsGlobal = isGlobal
+                            newTagProfileIds = ids
+                        },
                     )
                     tagCreationError?.let { errorMessage ->
                         Text(
@@ -903,11 +909,9 @@ fun AddLinkScreen(
                             return@TextButton
                         }
 
-                        // The same name can exist once per scope
                         val isDuplicateInAll =
                             availableTags.any {
-                                it.name.equals(trimmedTagName, ignoreCase = true) &&
-                                    it.profileId == newTagScopeProfileId
+                                it.name.equals(trimmedTagName, ignoreCase = true)
                             }
                         val isDuplicateInSelected =
                             selectedTags.any {
@@ -917,25 +921,20 @@ fun AddLinkScreen(
                         if (isDuplicateInAll || isDuplicateInSelected) {
                             tagCreationError = context.getString(R.string.tag_name_exists)
                         } else {
-                            // The link may target a profile other than the selected one, so
-                            // the tag is created and awaited instead of relying on the
-                            // observed query to emit.
                             scope.launch {
                                 val created =
                                     viewModel.insertTagAndGet(
-                                        trimmedTagName,
-                                        newTagScopeProfileId,
+                                        tagName = trimmedTagName,
+                                        isGlobal = newTagIsGlobal,
+                                        profileIds = newTagProfileIds.toList(),
                                     )
 
                                 if (created != null) {
                                     selectedTags.add(created)
-                                    // Only the tag of the very same scope is replaced, a tag
-                                    // with the same name can also live in another scope
                                     availableTags =
                                         (
                                             availableTags.filterNot {
-                                                it.name.equals(created.name, ignoreCase = true) &&
-                                                    it.profileId == created.profileId
+                                                it.name.equals(created.name, ignoreCase = true)
                                             } + created
                                         ).sortedBy { it.name }
                                 } else {
@@ -945,7 +944,7 @@ fun AddLinkScreen(
                                             0,
                                             trimmedTagName,
                                             if (isPrivateMode) 1L else 0L,
-                                            newTagScopeProfileId,
+                                            if (newTagIsGlobal) 1L else 0L,
                                         ),
                                     )
                                 }

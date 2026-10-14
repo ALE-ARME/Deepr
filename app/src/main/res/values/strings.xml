@@ -108,8 +108,11 @@
     <string name="tag_scope">Tag Scope</string>
     <string name="tag_scope_global">Global</string>
     <string name="tag_scope_profile">Profile: %1$s</string>
+    <string name="tag_scope_multiple_profiles">%1$d profiles (%2$s)</string>
+    <string name="tag_scope_profiles_count">%1$d profiles</string>
     <string name="tag_badge_global">Global</string>
     <string name="tag_badge_profile">%1$s only</string>
+    <string name="done">Done</string>
 
     <plurals name="tag_used_by_links">
         <item quantity="one">This tag is used by %1$d link. Deleting it will remove the tag from this link.</item>

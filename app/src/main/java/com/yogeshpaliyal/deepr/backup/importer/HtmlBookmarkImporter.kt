@@ -5,7 +5,6 @@ import android.net.Uri
 import com.yogeshpaliyal.deepr.DeeprQueries
 import com.yogeshpaliyal.deepr.backup.ImportResult
 import com.yogeshpaliyal.deepr.preference.AppPreferenceDataStore
-import com.yogeshpaliyal.deepr.util.GLOBAL_TAG_PROFILE_ID
 import com.yogeshpaliyal.deepr.util.RequestResult
 import kotlinx.coroutines.flow.firstOrNull
 import org.jsoup.Jsoup
@@ -51,10 +50,10 @@ abstract class HtmlBookmarkImporter(
                                 if (!bookmark.tags.isNullOrEmpty()) {
                                     val linkId = deeprQueries.lastInsertRowId().executeAsOne()
                                     bookmark.tags.forEach { tagName ->
-                                        deeprQueries.insertTag(tagName, 0L, GLOBAL_TAG_PROFILE_ID)
+                                        deeprQueries.insertTag(tagName, 0L, 1L)
                                         val tag =
                                             deeprQueries
-                                                .getTagByName(tagName, 0L, GLOBAL_TAG_PROFILE_ID)
+                                                .getTagByName(tagName, 0L)
                                                 .executeAsOneOrNull()
                                         if (tag != null) {
                                             deeprQueries.addTagToLink(linkId, tag.id)

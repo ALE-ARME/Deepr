@@ -79,13 +79,32 @@ interface LinkRepository {
     suspend fun getTagByName(
         tagName: String,
         isPrivate: Long,
-        profileId: Long,
     ): Tags?
+
+    suspend fun getTagByName(
+        tagName: String,
+        isPrivate: Long,
+        profileId: Long,
+    ): Tags? = getTagByName(tagName, isPrivate)
+
+    suspend fun insertTag(
+        tagName: String,
+        isPrivate: Long,
+        isGlobal: Boolean = true,
+        profileIds: List<Long> = emptyList(),
+    )
 
     suspend fun insertTag(
         tagName: String,
         isPrivate: Long,
         profileId: Long,
+    )
+
+    suspend fun updateTag(
+        id: Long,
+        name: String,
+        isGlobal: Boolean,
+        profileIds: List<Long>,
     )
 
     suspend fun updateTag(
@@ -99,10 +118,14 @@ interface LinkRepository {
     suspend fun deleteTagRelations(id: Long)
 
     /**
-     * Deletes every tag bound to the given profile. Global tags (profileId = 0)
-     * are left untouched.
+     * Deletes every tag bound to the given profile that is not global and has no
+     * other profile associations.
      */
     suspend fun deleteTagsForProfile(profileId: Long)
+
+    suspend fun getProfilesForTag(tagId: Long): List<Long>
+
+    fun getAllTagProfiles(): Query<com.yogeshpaliyal.deepr.TagProfiles>
 
     // Link-Tag operations
     suspend fun addTagToLink(
