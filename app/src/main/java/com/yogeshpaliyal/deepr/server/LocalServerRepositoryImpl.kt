@@ -225,9 +225,7 @@ open class LocalServerRepositoryImpl(
                         createApplicationPlugin(name = "ActivityTracker") {
                             onCall { call ->
                                 val path = call.request.uri.substringBefore("?")
-                                if (!path.startsWith("/api/private/status") &&
-                                    !path.startsWith("/api/auth/status")
-                                ) {
+                                if (!path.startsWith("/api/auth/status")) {
                                     if (!path.startsWith("/api/") || isAuthorized(call)) {
                                         recordActivity()
                                     }
@@ -392,8 +390,6 @@ open class LocalServerRepositoryImpl(
                                             "{{WEB_ERROR_REFRESH}}" to R.string.web_error_refresh,
                                             "{{WEB_ERROR_FETCH}}" to R.string.web_error_fetch,
                                             "{{WEB_MSG_SWITCHED}}" to R.string.web_msg_switched,
-                                            "{{WEB_PRIVATE_UNLOCK}}" to R.string.unlock_private_links,
-                                            "{{WEB_PRIVATE_LOCK}}" to R.string.lock_private_links,
                                             "{{WEB_MSG_FILTERED}}" to R.string.web_msg_filtered,
                                             "{{WEB_MSG_FILTERS_CLEARED}}" to R.string.web_msg_filters_cleared,
                                             "{{WEB_NO_LINKS}}" to R.string.web_no_links,
@@ -436,9 +432,8 @@ open class LocalServerRepositoryImpl(
                         get("/api/profiles") {
                             try {
                                 val profiles = deeprQueries.getAllProfiles().executeAsList()
-                                val isPrivateMode = accountViewModel.isPrivateMode.value
                                 val response =
-                                    profiles.filter { (it.isPrivate == 1L) == isPrivateMode }.map { profile ->
+                                    profiles.filter { it.isPrivate == 0L }.map { profile ->
                                         ProfileResponse(
                                             id = profile.id,
                                             name = profile.name,
@@ -519,10 +514,12 @@ open class LocalServerRepositoryImpl(
                                         parsedId
                                     }
 
-                                val isPrivateMode = accountViewModel.isPrivateMode.value
                                 val profile = deeprQueries.getProfileById(profileId).executeAsOneOrNull()
-                                if (profile != null && profile.isPrivate == 1L && !isPrivateMode) {
-                                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("Private mode is locked."))
+                                if (profile != null && profile.isPrivate == 1L) {
+                                    call.respond(
+                                        HttpStatusCode.Forbidden,
+                                        ErrorResponse("Private profiles are not accessible from the web interface."),
+                                    )
                                     return@get
                                 }
 
@@ -576,8 +573,7 @@ open class LocalServerRepositoryImpl(
                                 val request = call.receive<AddLinkRequest>()
 
                                 var finalProfileId = request.profileId
-                                val isPrivateMode = accountViewModel.isPrivateMode.value
-                                val isPrivate = if (isPrivateMode) 1L else 0L
+                                val isPrivate = 0L
                                 if (!request.profileName.isNullOrBlank()) {
                                     val dbProfile =
                                         deeprQueries
@@ -602,8 +598,11 @@ open class LocalServerRepositoryImpl(
                                 }
 
                                 val profile = deeprQueries.getProfileById(finalProfileId).executeAsOneOrNull()
-                                if (profile != null && profile.isPrivate == 1L && !isPrivateMode) {
-                                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("Private mode is locked."))
+                                if (profile != null && profile.isPrivate == 1L) {
+                                    call.respond(
+                                        HttpStatusCode.Forbidden,
+                                        ErrorResponse("Private profiles are not accessible from the web interface."),
+                                    )
                                     return@post
                                 }
 
@@ -667,15 +666,17 @@ open class LocalServerRepositoryImpl(
                                         ).executeAsList()
                                         .firstOrNull { it.id == id }
 
-                                val isPrivateMode = accountViewModel.isPrivateMode.value
-                                val isPrivate = if (isPrivateMode) 1L else 0L
+                                val isPrivate = 0L
 
                                 // Verify that the link is accessible
                                 val targetLink = deeprQueries.getDeeprById(id).executeAsOneOrNull()
                                 if (targetLink != null) {
                                     val linkProfile = deeprQueries.getProfileById(targetLink.profileId).executeAsOneOrNull()
-                                    if (linkProfile != null && linkProfile.isPrivate == 1L && !isPrivateMode) {
-                                        call.respond(HttpStatusCode.Forbidden, ErrorResponse("Private mode is locked."))
+                                    if (linkProfile != null && linkProfile.isPrivate == 1L) {
+                                        call.respond(
+                                            HttpStatusCode.Forbidden,
+                                            ErrorResponse("Private profiles are not accessible from the web interface."),
+                                        )
                                         return@put
                                     }
                                 }
@@ -707,8 +708,11 @@ open class LocalServerRepositoryImpl(
                                 }
 
                                 val profile = deeprQueries.getProfileById(finalProfileId).executeAsOneOrNull()
-                                if (profile != null && profile.isPrivate == 1L && !isPrivateMode) {
-                                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("Private mode is locked."))
+                                if (profile != null && profile.isPrivate == 1L) {
+                                    call.respond(
+                                        HttpStatusCode.Forbidden,
+                                        ErrorResponse("Private profiles are not accessible from the web interface."),
+                                    )
                                     return@put
                                 }
 
@@ -751,12 +755,14 @@ open class LocalServerRepositoryImpl(
                                     return@delete
                                 }
 
-                                val isPrivateMode = accountViewModel.isPrivateMode.value
                                 val targetLink = deeprQueries.getDeeprById(id).executeAsOneOrNull()
                                 if (targetLink != null) {
                                     val linkProfile = deeprQueries.getProfileById(targetLink.profileId).executeAsOneOrNull()
-                                    if (linkProfile != null && linkProfile.isPrivate == 1L && !isPrivateMode) {
-                                        call.respond(HttpStatusCode.Forbidden, ErrorResponse("Private mode is locked."))
+                                    if (linkProfile != null && linkProfile.isPrivate == 1L) {
+                                        call.respond(
+                                            HttpStatusCode.Forbidden,
+                                            ErrorResponse("Private profiles are not accessible from the web interface."),
+                                        )
                                         return@delete
                                     }
                                 }
@@ -803,8 +809,7 @@ open class LocalServerRepositoryImpl(
                                         }
                                         parsedId
                                     }
-                                val isPrivateMode = accountViewModel.isPrivateMode.value
-                                val isPrivate = if (isPrivateMode) 1L else 0L
+                                val isPrivate = 0L
                                 val allTags = deeprQueries.getAllTagsWithCount(profileId = profileId, isPrivate = isPrivate).executeAsList()
                                 val response =
                                     allTags.map { tag ->
@@ -835,8 +840,7 @@ open class LocalServerRepositoryImpl(
                                     return@post
                                 }
 
-                                val isPrivateMode = accountViewModel.isPrivateMode.value
-                                val isPrivate = if (isPrivateMode) 1L else 0L
+                                val isPrivate = 0L
 
                                 // A null or zero profileId creates a global tag, available to every profile
                                 val tagProfileId = request.profileId?.takeIf { it > 0 } ?: GLOBAL_TAG_PROFILE_ID
@@ -849,8 +853,11 @@ open class LocalServerRepositoryImpl(
                                         )
                                         return@post
                                     }
-                                    if (profile.isPrivate == 1L && !isPrivateMode) {
-                                        call.respond(HttpStatusCode.Forbidden, ErrorResponse("Private mode is locked."))
+                                    if (profile.isPrivate == 1L) {
+                                        call.respond(
+                                            HttpStatusCode.Forbidden,
+                                            ErrorResponse("Private profiles are not accessible from the web interface."),
+                                        )
                                         return@post
                                     }
                                 }
@@ -884,10 +891,12 @@ open class LocalServerRepositoryImpl(
                                     return@delete
                                 }
 
-                                val isPrivateMode = accountViewModel.isPrivateMode.value
                                 val targetTag = deeprQueries.getTagById(id).executeAsOneOrNull()
-                                if (targetTag != null && targetTag.isPrivate == 1L && !isPrivateMode) {
-                                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("Private mode is locked."))
+                                if (targetTag != null && targetTag.isPrivate == 1L) {
+                                    call.respond(
+                                        HttpStatusCode.Forbidden,
+                                        ErrorResponse("Private tags are not accessible from the web interface."),
+                                    )
                                     return@delete
                                 }
 
@@ -945,12 +954,14 @@ open class LocalServerRepositoryImpl(
                             try {
                                 val id = call.request.queryParameters["id"]?.toLongOrNull()
                                 if (id != null) {
-                                    val isPrivateMode = accountViewModel.isPrivateMode.value
                                     val targetLink = deeprQueries.getDeeprById(id).executeAsOneOrNull()
                                     if (targetLink != null) {
                                         val linkProfile = deeprQueries.getProfileById(targetLink.profileId).executeAsOneOrNull()
-                                        if (linkProfile != null && linkProfile.isPrivate == 1L && !isPrivateMode) {
-                                            call.respond(HttpStatusCode.Forbidden, ErrorResponse("Private mode is locked."))
+                                        if (linkProfile != null && linkProfile.isPrivate == 1L) {
+                                            call.respond(
+                                                HttpStatusCode.Forbidden,
+                                                ErrorResponse("Private profiles are not accessible from the web interface."),
+                                            )
                                             return@post
                                         }
                                     }
@@ -972,12 +983,14 @@ open class LocalServerRepositoryImpl(
                             try {
                                 val id = call.request.queryParameters["id"]?.toLongOrNull()
                                 if (id != null) {
-                                    val isPrivateMode = accountViewModel.isPrivateMode.value
                                     val targetLink = deeprQueries.getDeeprById(id).executeAsOneOrNull()
                                     if (targetLink != null) {
                                         val linkProfile = deeprQueries.getProfileById(targetLink.profileId).executeAsOneOrNull()
-                                        if (linkProfile != null && linkProfile.isPrivate == 1L && !isPrivateMode) {
-                                            call.respond(HttpStatusCode.Forbidden, ErrorResponse("Private mode is locked."))
+                                        if (linkProfile != null && linkProfile.isPrivate == 1L) {
+                                            call.respond(
+                                                HttpStatusCode.Forbidden,
+                                                ErrorResponse("Private profiles are not accessible from the web interface."),
+                                            )
                                             return@post
                                         }
                                     }
@@ -992,91 +1005,6 @@ open class LocalServerRepositoryImpl(
                                     HttpStatusCode.InternalServerError,
                                     ErrorResponse("Error toggling favourite: ${e.message}"),
                                 )
-                            }
-                        }
-
-                        get("/api/private/status") {
-                            try {
-                                val isUnlocked = accountViewModel.isPrivateMode.value
-                                call.respond(HttpStatusCode.OK, PrivateStatusResponse(isUnlocked = isUnlocked))
-                            } catch (e: Exception) {
-                                call.respond(HttpStatusCode.InternalServerError, ErrorResponse(e.message ?: "Unknown error"))
-                            }
-                        }
-
-                        post("/api/private/lock") {
-                            try {
-                                accountViewModel.setPrivateMode(false)
-                                call.respond(HttpStatusCode.OK, SuccessResponse("Locked successfully"))
-                            } catch (e: Exception) {
-                                call.respond(HttpStatusCode.InternalServerError, ErrorResponse(e.message ?: "Unknown error"))
-                            }
-                        }
-
-                        post("/api/private/request-unlock") {
-                            try {
-                                if (accountViewModel.isPrivateMode.value) {
-                                    call.respond(HttpStatusCode.OK, PrivateStatusResponse(isUnlocked = true))
-                                    return@post
-                                }
-
-                                val channelId = "web_server_unlock"
-                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                                    val name = "Web Server Unlock"
-                                    val importance = android.app.NotificationManager.IMPORTANCE_HIGH
-                                    val channel = android.app.NotificationChannel(channelId, name, importance)
-                                    val manager =
-                                        context.getSystemService(Context.NOTIFICATION_SERVICE)
-                                            as android.app.NotificationManager
-                                    manager.createNotificationChannel(channel)
-                                }
-
-                                val intent =
-                                    android.content
-                                        .Intent(
-                                            context,
-                                            com.yogeshpaliyal.deepr.MainActivity::class.java,
-                                        ).apply {
-                                            flags =
-                                                android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
-                                                android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
-                                            putExtra("request_private_unlock", true)
-                                        }
-                                val pendingIntent =
-                                    android.app.PendingIntent.getActivity(
-                                        context,
-                                        1001,
-                                        intent,
-                                        android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
-                                    )
-
-                                val notification =
-                                    androidx.core.app.NotificationCompat
-                                        .Builder(context, channelId)
-                                        .setSmallIcon(com.yogeshpaliyal.deepr.R.mipmap.ic_launcher)
-                                        .setContentTitle(
-                                            context.getString(
-                                                com.yogeshpaliyal.deepr.R.string.web_unlock_request_title,
-                                            ),
-                                        ).setContentText(
-                                            context.getString(
-                                                com.yogeshpaliyal.deepr.R.string.web_unlock_request_desc,
-                                            ),
-                                        ).setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
-                                        .setContentIntent(pendingIntent)
-                                        .setAutoCancel(true)
-                                        .build()
-
-                                val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
-                                manager.notify(1001, notification)
-
-                                call.respond(
-                                    HttpStatusCode.OK,
-                                    PrivateStatusResponse(isUnlocked = false, status = "Prompted on device"),
-                                )
-                            } catch (e: Exception) {
-                                Log.e("LocalServer", "Error requesting private unlock", e)
-                                call.respond(HttpStatusCode.InternalServerError, ErrorResponse(e.message ?: "Unknown error"))
                             }
                         }
 
@@ -1855,12 +1783,6 @@ data class ServerInfoResponse(
     val appVersion: String,
     val status: String = "running",
     val endpoints: List<EndpointInfo>,
-)
-
-@Serializable
-data class PrivateStatusResponse(
-    val isUnlocked: Boolean,
-    val status: String? = null,
 )
 
 @Serializable
