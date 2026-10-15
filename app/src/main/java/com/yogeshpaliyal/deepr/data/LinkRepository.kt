@@ -68,13 +68,9 @@ interface LinkRepository {
     ): Query<Tags>
 
     /**
-     * Returns the global tags plus the ones bound to the given profile, with
-     * the amount of links of the given profile using each of them.
+     * Returns all tags with the count of links using each of them.
      */
-    fun getAllTagsWithCount(
-        profileId: Long,
-        isPrivate: Long,
-    ): Query<GetAllTagsWithCount>
+    fun getAllTagsWithCount(isPrivate: Long): Query<GetAllTagsWithCount>
 
     suspend fun getTagByName(
         tagName: String,

@@ -114,10 +114,7 @@ class LinkRepositoryImpl(
         profileId: Long,
     ): Query<Tags> = deeprQueries.getAllTags(isPrivate, profileId)
 
-    override fun getAllTagsWithCount(
-        profileId: Long,
-        isPrivate: Long,
-    ): Query<GetAllTagsWithCount> = deeprQueries.getAllTagsWithCount(isPrivate, profileId)
+    override fun getAllTagsWithCount(isPrivate: Long): Query<GetAllTagsWithCount> = deeprQueries.getAllTagsWithCount(isPrivate)
 
     override suspend fun getTagByName(
         tagName: String,

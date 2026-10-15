@@ -230,12 +230,14 @@ class AccountViewModel(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val allTagsWithCount: StateFlow<List<GetAllTagsWithCount>> =
-        combine(selectedProfileId, isPrivateMode) { profileId, privateMode ->
-            val isPriv = if (privateMode) 1L else 0L
-            linkRepository.getAllTagsWithCount(profileId, isPriv)
-        }.flatMapLatest { query ->
-            query.asFlow().mapToList(viewModelScope.coroutineContext)
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), listOf())
+        isPrivateMode
+            .flatMapLatest { privateMode ->
+                val isPriv = if (privateMode) 1L else 0L
+                linkRepository
+                    .getAllTagsWithCount(isPriv)
+                    .asFlow()
+                    .mapToList(viewModelScope.coroutineContext)
+            }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), listOf())
 
     val tagProfiles: StateFlow<Map<Long, Set<Long>>> =
         linkRepository

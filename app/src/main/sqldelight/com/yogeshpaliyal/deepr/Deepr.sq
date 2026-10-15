@@ -260,19 +260,15 @@ SELECT * FROM Tags ORDER BY name ASC;
 listAllLinkTags:
 SELECT * FROM LinkTags;
 
--- Global tags (isGlobal = 1) plus the ones bound to the given profile
 getAllTagsWithCount:
 SELECT 
   Tags.id,
   Tags.name,
   Tags.isGlobal,
-  COUNT(DISTINCT CASE WHEN Deepr.profileId = :profileId THEN LinkTags.linkId END) AS linkCount
+  COUNT(DISTINCT LinkTags.linkId) AS linkCount
 FROM Tags
-LEFT JOIN TagProfiles ON Tags.id = TagProfiles.tagId
 LEFT JOIN LinkTags ON Tags.id = LinkTags.tagId
-LEFT JOIN Deepr ON LinkTags.linkId = Deepr.id
 WHERE Tags.isPrivate = :isPrivate
-  AND (Tags.isGlobal = 1 OR TagProfiles.profileId = :profileId)
 GROUP BY Tags.id, Tags.name, Tags.isGlobal
 ORDER BY linkCount DESC, Tags.name;
 

@@ -110,9 +110,6 @@ object TagSelectionScreen : TopLevelRoute {
         var editTagProfileIds by remember { mutableStateOf(setOf<Long>()) }
         var isTagDeleteEnable by remember { mutableStateOf<GetAllTagsWithCount?>(null) }
         var tagEditError by remember { mutableStateOf<String?>(null) }
-        // Scope of the tag being created
-        var newTagIsGlobal by remember { mutableStateOf(true) }
-        var newTagProfileIds by remember { mutableStateOf(setOf<Long>()) }
 
         // Filter tags based on search query
         val filteredTags =
@@ -287,14 +284,8 @@ object TagSelectionScreen : TopLevelRoute {
                                                         Toast.LENGTH_SHORT,
                                                     ).show()
                                             } else {
-                                                viewModel.insertTag(
-                                                    tagName = trimmedTagName,
-                                                    isGlobal = newTagIsGlobal,
-                                                    profileIds = newTagProfileIds.toList(),
-                                                )
+                                                viewModel.insertTag(trimmedTagName)
                                                 newTagName = ""
-                                                newTagIsGlobal = true
-                                                newTagProfileIds = emptySet()
                                                 Toast
                                                     .makeText(
                                                         context,
@@ -313,16 +304,6 @@ object TagSelectionScreen : TopLevelRoute {
                                     )
                                 }
                             }
-
-                            TagScopeDropdown(
-                                isGlobal = newTagIsGlobal,
-                                selectedProfileIds = newTagProfileIds,
-                                profiles = allProfiles,
-                                onScopeChanged = { isGlobal, ids ->
-                                    newTagIsGlobal = isGlobal
-                                    newTagProfileIds = ids
-                                },
-                            )
                         }
                     }
                 }
