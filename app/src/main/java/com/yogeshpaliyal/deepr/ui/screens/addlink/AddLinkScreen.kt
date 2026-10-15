@@ -2,6 +2,7 @@ package com.yogeshpaliyal.deepr.ui.screens.addlink
 
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.AnimatedVisibility
@@ -224,7 +225,7 @@ fun AddLinkScreen(
             list.add(TargetAppOption(key = TARGET_APP_INCOGNITO, label = context.getString(R.string.browser_incognito)))
 
             try {
-                val dummyIntent = Intent(Intent.ACTION_VIEW, "https://example.com".toUri())
+                val dummyIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com"))
                 val resolvedActivities = packageManager.queryIntentActivities(dummyIntent, PackageManager.MATCH_ALL)
                 val seenPackages = mutableSetOf<String>()
                 for (info in resolvedActivities) {

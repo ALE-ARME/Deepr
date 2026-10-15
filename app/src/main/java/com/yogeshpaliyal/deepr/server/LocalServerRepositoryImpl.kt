@@ -1179,6 +1179,7 @@ open class LocalServerRepositoryImpl(
                                             notes = it.notes ?: "",
                                             thumbnail = it.thumbnail ?: "",
                                             profileId = it.profileId,
+                                            targetApp = it.targetApp,
                                         )
                                     }
 
@@ -1918,6 +1919,7 @@ data class LinkExportData(
     val notes: String,
     val thumbnail: String,
     val profileId: Long,
+    val targetApp: String = "",
 )
 
 @Serializable
