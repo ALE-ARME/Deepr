@@ -234,7 +234,6 @@
     <string name="remove_password">Rimuovi password</string>
     <string name="password_removed">Password rimossa</string>
     <string name="open_with_app">Apri con</string>
-    <string name="system_default">Predefinito di sistema</string>
     <string name="browser_incognito">Incognito / Privato</string>
     <string name="open_in_incognito">Apri in Incognito</string>
     <string name="open_with_selected_app">Apri con %1$s</string>
