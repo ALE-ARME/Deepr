@@ -72,14 +72,76 @@ private fun openInIncognito(
     val uri = normalizedLink.toUri()
     val packageManager = context.packageManager
 
-    // 1. Check for Firefox Focus or DuckDuckGo (privacy-by-default browsers)
+    val firefoxPackages =
+        listOf(
+            "org.mozilla.firefox",
+            "org.mozilla.firefox_beta",
+            "org.mozilla.fenix",
+            "org.mozilla.fennec_fdroid",
+            "org.mozilla.nightly",
+        )
+    val chromePackages =
+        listOf(
+            "com.android.chrome",
+            "com.chrome.beta",
+            "com.chrome.dev",
+            "com.chrome.canary",
+            "com.google.android.apps.chrome",
+        )
     val privacyBrowsers =
         listOf(
             "org.mozilla.focus",
+            "org.mozilla.klar",
             "com.duckduckgo.mobile.android",
             "com.brave.browser",
         )
-    for (pkg in privacyBrowsers) {
+
+    fun tryFirefox(pkg: String): Boolean {
+        try {
+            packageManager.getPackageInfo(pkg, 0)
+            val intent =
+                Intent(Intent.ACTION_VIEW, uri).apply {
+                    setPackage(pkg)
+                    setClassName(pkg, "org.mozilla.fenix.IntentReceiverActivity")
+                    putExtra("private_browsing_mode", true)
+                    putExtra("private_tab", true)
+                    putExtra("open_to_private_browsing", true)
+                }
+            context.startActivity(intent)
+            return true
+        } catch (_: Exception) {
+            try {
+                val intentFallback =
+                    Intent(Intent.ACTION_VIEW, uri).apply {
+                        setPackage(pkg)
+                        putExtra("private_browsing_mode", true)
+                        putExtra("private_tab", true)
+                        putExtra("open_to_private_browsing", true)
+                    }
+                context.startActivity(intentFallback)
+                return true
+            } catch (_: Exception) {
+                return false
+            }
+        }
+    }
+
+    fun tryChrome(pkg: String): Boolean {
+        try {
+            packageManager.getPackageInfo(pkg, 0)
+            val intent =
+                Intent(Intent.ACTION_VIEW, uri).apply {
+                    setPackage(pkg)
+                    putExtra("com.google.android.apps.chrome.EXTRA_OPEN_NEW_INCOGNITO_TAB", true)
+                }
+            context.startActivity(intent)
+            return true
+        } catch (_: Exception) {
+            return false
+        }
+    }
+
+    fun tryPrivacyBrowser(pkg: String): Boolean {
         try {
             packageManager.getPackageInfo(pkg, 0)
             val intent =
@@ -89,46 +151,41 @@ private fun openInIncognito(
             context.startActivity(intent)
             return true
         } catch (_: Exception) {
+            return false
         }
     }
 
-    // 2. Check for standard Firefox (supports OPEN_PRIVATE_TAB action)
-    val firefoxPackages = listOf("org.mozilla.firefox", "org.mozilla.firefox_beta")
+    // 0. Check default browser first so user's preference is honored
+    val defaultBrowserIntent = Intent(Intent.ACTION_VIEW, uri)
+    val defaultResolve = packageManager.resolveActivity(defaultBrowserIntent, PackageManager.MATCH_DEFAULT_ONLY)
+    val defaultPkg = defaultResolve?.activityInfo?.packageName
+    if (!defaultPkg.isNullOrBlank()) {
+        if (defaultPkg in firefoxPackages && tryFirefox(defaultPkg)) return true
+        if (defaultPkg in chromePackages && tryChrome(defaultPkg)) return true
+        if (defaultPkg in privacyBrowsers && tryPrivacyBrowser(defaultPkg)) return true
+    }
+
+    // 1. Check for Firefox
     for (ffPkg in firefoxPackages) {
-        try {
-            packageManager.getPackageInfo(ffPkg, 0)
-            val ffIntent =
-                Intent("org.mozilla.fenix.OPEN_PRIVATE_TAB", uri).apply {
-                    setPackage(ffPkg)
-                    setClassName(ffPkg, "org.mozilla.fenix.IntentReceiverActivity")
-                }
-            context.startActivity(ffIntent)
-            return true
-        } catch (_: Exception) {
-        }
+        if (tryFirefox(ffPkg)) return true
     }
 
-    // 3. Try Chrome or Chromium browsers with incognito extras
-    val chromePackages = listOf("com.android.chrome", "com.chrome.beta", "com.chrome.dev", "com.google.android.apps.chrome")
+    // 2. Check privacy-by-default browsers
+    for (pkg in privacyBrowsers) {
+        if (tryPrivacyBrowser(pkg)) return true
+    }
+
+    // 3. Check Chrome / Chromium browsers
     for (chromePkg in chromePackages) {
-        try {
-            packageManager.getPackageInfo(chromePkg, 0)
-            val intent =
-                Intent(Intent.ACTION_VIEW, uri).apply {
-                    setPackage(chromePkg)
-                    putExtra("com.google.android.apps.chrome.EXTRA_OPEN_NEW_INCOGNITO_TAB", true)
-                }
-            context.startActivity(intent)
-            return true
-        } catch (_: Exception) {
-        }
+        if (tryChrome(chromePkg)) return true
     }
 
-    // 4. Fallback: try opening with generic VIEW intent
+    // 4. Fallback: try opening with generic VIEW intent with incognito extras
     val defaultIntent =
         Intent(Intent.ACTION_VIEW, uri).apply {
-            putExtra("com.google.android.apps.chrome.EXTRA_OPEN_NEW_INCOGNITO_TAB", true)
+            putExtra("private_browsing_mode", true)
             putExtra("private_tab", true)
+            putExtra("com.google.android.apps.chrome.EXTRA_OPEN_NEW_INCOGNITO_TAB", true)
         }
     context.startActivity(defaultIntent)
     return true
