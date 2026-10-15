@@ -1,5 +1,7 @@
 package com.yogeshpaliyal.deepr.ui.screens.addlink
 
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.AnimatedVisibility
@@ -77,6 +79,7 @@ import com.yogeshpaliyal.deepr.ui.LocalNavigator
 import com.yogeshpaliyal.deepr.ui.components.ClearInputIconButton
 import com.yogeshpaliyal.deepr.ui.components.TagScopeDropdown
 import com.yogeshpaliyal.deepr.util.QRScanner
+import com.yogeshpaliyal.deepr.util.TARGET_APP_INCOGNITO
 import com.yogeshpaliyal.deepr.util.isValidDeeplink
 import com.yogeshpaliyal.deepr.util.normalizeLink
 import com.yogeshpaliyal.deepr.util.openDeeplink
@@ -85,6 +88,8 @@ import compose.icons.TablerIcons
 import compose.icons.tablericons.ArrowLeft
 import compose.icons.tablericons.Check
 import compose.icons.tablericons.Download
+import compose.icons.tablericons.ExternalLink
+import compose.icons.tablericons.EyeOff
 import compose.icons.tablericons.Link
 import compose.icons.tablericons.Note
 import compose.icons.tablericons.Photo
@@ -204,6 +209,37 @@ fun AddLinkScreen(
         }
     }
 
+    // Installed apps capable of opening web links
+    data class TargetAppOption(
+        val key: String,
+        val label: String,
+        val icon: android.graphics.drawable.Drawable? = null,
+    )
+
+    val packageManager = context.packageManager
+    val targetAppOptions =
+        remember {
+            val list = mutableListOf<TargetAppOption>()
+            list.add(TargetAppOption(key = "", label = context.getString(R.string.system_default)))
+            list.add(TargetAppOption(key = TARGET_APP_INCOGNITO, label = context.getString(R.string.browser_incognito)))
+
+            try {
+                val dummyIntent = Intent(Intent.ACTION_VIEW, "https://example.com".toUri())
+                val resolvedActivities = packageManager.queryIntentActivities(dummyIntent, PackageManager.MATCH_ALL)
+                val seenPackages = mutableSetOf<String>()
+                for (info in resolvedActivities) {
+                    val pkg = info.activityInfo.packageName
+                    if (pkg != context.packageName && seenPackages.add(pkg)) {
+                        val appLabel = info.loadLabel(packageManager).toString()
+                        val appIcon = info.loadIcon(packageManager)
+                        list.add(TargetAppOption(key = pkg, label = appLabel, icon = appIcon))
+                    }
+                }
+            } catch (_: Exception) {
+            }
+            list
+        }
+
     var showCreateProfileDialog by remember { mutableStateOf(false) }
     var showCreateTagDialog by remember { mutableStateOf(false) }
     var pendingProfileNameToSelect by remember { mutableStateOf<String?>(null) }
@@ -263,6 +299,7 @@ fun AddLinkScreen(
                 notes = deeprInfo.notes,
                 thumbnail = deeprInfo.thumbnail,
                 profileId = selectedProfileId,
+                targetApp = deeprInfo.targetApp,
             )
         } else {
             // Edit
@@ -274,10 +311,11 @@ fun AddLinkScreen(
                 notes = deeprInfo.notes,
                 thumbnail = deeprInfo.thumbnail,
                 profileId = selectedProfileId,
+                targetApp = deeprInfo.targetApp,
             )
         }
         if (executeAfterSave) {
-            openDeeplink(context, normalizedLink)
+            openDeeplink(context, normalizedLink, deeprInfo.targetApp)
         }
         navigator.removeLast()
     }
@@ -699,6 +737,84 @@ fun AddLinkScreen(
                         }
                     }
 
+                    // Open With App Selection
+                    var targetAppExpanded by remember { mutableStateOf(false) }
+                    val currentTargetAppOption =
+                        targetAppOptions.find { it.key == deeprInfo.targetApp }
+                            ?: targetAppOptions.first()
+
+                    ExposedDropdownMenuBox(
+                        expanded = targetAppExpanded,
+                        onExpandedChange = { targetAppExpanded = !targetAppExpanded },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        OutlinedTextField(
+                            value = currentTargetAppOption.label,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text(stringResource(R.string.open_with_app)) },
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = targetAppExpanded) },
+                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                            shape = RoundedCornerShape(12.dp),
+                            leadingIcon = {
+                                when (deeprInfo.targetApp) {
+                                    TARGET_APP_INCOGNITO -> {
+                                        Icon(TablerIcons.EyeOff, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    }
+                                    else -> {
+                                        Icon(TablerIcons.ExternalLink, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    }
+                                }
+                            },
+                        )
+
+                        ExposedDropdownMenu(
+                            expanded = targetAppExpanded,
+                            onDismissRequest = { targetAppExpanded = false },
+                        ) {
+                            targetAppOptions.forEach { option ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        ) {
+                                            when (option.key) {
+                                                "" ->
+                                                    Icon(
+                                                        TablerIcons.ExternalLink,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(18.dp),
+                                                    )
+                                                TARGET_APP_INCOGNITO ->
+                                                    Icon(
+                                                        TablerIcons.EyeOff,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(18.dp),
+                                                    )
+                                                else ->
+                                                    Icon(
+                                                        TablerIcons.ExternalLink,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(18.dp),
+                                                    )
+                                            }
+                                            Text(option.label)
+                                        }
+                                    },
+                                    onClick = {
+                                        deeprInfo = deeprInfo.copy(targetApp = option.key)
+                                        targetAppExpanded = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+
                     Spacer(modifier = Modifier.weight(1f))
 
                     // Action Buttons (Compact)
@@ -758,7 +874,7 @@ fun AddLinkScreen(
                                 FilledTonalButton(
                                     modifier = Modifier.weight(1f),
                                     onClick = {
-                                        isError = !openDeeplink(context, normalizeLink(deeprInfo.link))
+                                        isError = !openDeeplink(context, normalizeLink(deeprInfo.link), deeprInfo.targetApp)
                                     },
                                     shape = RoundedCornerShape(12.dp),
                                 ) {

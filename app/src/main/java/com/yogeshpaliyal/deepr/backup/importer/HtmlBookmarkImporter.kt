@@ -44,6 +44,7 @@ abstract class HtmlBookmarkImporter(
                                     thumbnail = "",
                                     isFavourite = 0L,
                                     profileId = profileId,
+                                    targetApp = "",
                                 )
 
                                 // Add tags if present

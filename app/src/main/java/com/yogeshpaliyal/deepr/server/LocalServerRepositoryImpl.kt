@@ -551,6 +551,7 @@ open class LocalServerRepositoryImpl(
                                             openedCount = link.openedCount,
                                             notes = link.notes,
                                             thumbnail = link.thumbnail,
+                                            targetApp = link.targetApp,
                                             tags =
                                                 link.tagsNames
                                                     ?.split(", ")
@@ -622,6 +623,7 @@ open class LocalServerRepositoryImpl(
                                         "",
                                         if (request.isFavourite) 1L else 0L,
                                         finalProfileId,
+                                        request.targetApp,
                                     )
                                     val newLinkId = deeprQueries.lastInsertRowId().executeAsOne()
                                     mergedTags.forEach { tagData ->
@@ -736,6 +738,7 @@ open class LocalServerRepositoryImpl(
                                         thumbnail,
                                         if (request.isFavourite) 1L else 0L,
                                         finalProfileId,
+                                        request.targetApp,
                                         id,
                                     )
                                     deeprQueries.deleteLinkRelations(id)
@@ -1599,6 +1602,7 @@ open class LocalServerRepositoryImpl(
                         isFavourite = link.isFavourite,
                         createdAt = link.createdAt,
                         profileId = localProfileId,
+                        targetApp = link.targetApp,
                     )
                     val newId = deeprQueries.lastInsertRowId().executeAsOne()
                     linkIdMap[link.id] = newId
@@ -1634,6 +1638,7 @@ open class LocalServerRepositoryImpl(
                         isFavourite = deeplink.isFavourite,
                         createdAt = deeplink.createdAt,
                         profileId = 1L, // Default profile
+                        targetApp = deeplink.targetApp,
                     )
 
                     val insertedId = deeprQueries.lastInsertRowId().executeAsOne()
@@ -1752,6 +1757,7 @@ data class LinkResponse(
     val notes: String,
     val thumbnail: String,
     val isFavourite: Long,
+    val targetApp: String = "",
     val tags: List<String>,
 )
 
@@ -1811,6 +1817,7 @@ data class AddLinkRequest(
     val profileId: Long = 1L,
     val profileName: String? = null,
     val isFavourite: Boolean = false,
+    val targetApp: String = "",
 )
 
 /**

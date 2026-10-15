@@ -22,6 +22,7 @@ isFavourite INTEGER NOT NULL DEFAULT 0,
 notes TEXT NOT NULL DEFAULT '',
 thumbnail TEXT NOT NULL DEFAULT '',
 profileId INTEGER NOT NULL DEFAULT 1,
+targetApp TEXT NOT NULL DEFAULT '',
 FOREIGN KEY (profileId) REFERENCES Profile(id) ON DELETE CASCADE
 );
 
@@ -65,10 +66,10 @@ lastInsertRowId:
 SELECT last_insert_rowid();
 
 insertDeepr:
-INSERT INTO Deepr (link, name, openedCount, notes, thumbnail, isFavourite, profileId) VALUES (?, ?, ?, ?, ?, ?, ?);
+INSERT INTO Deepr (link, name, openedCount, notes, thumbnail, isFavourite, profileId, targetApp) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 importDeepr:
-INSERT INTO Deepr (link, name, openedCount, notes, thumbnail, isFavourite, createdAt, profileId) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO Deepr (link, name, openedCount, notes, thumbnail, isFavourite, createdAt, profileId, targetApp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 getLinksAndTags:
 SELECT
@@ -81,6 +82,7 @@ SELECT
   Deepr.notes,
   Deepr.thumbnail,
   Deepr.profileId,
+  Deepr.targetApp,
   DOL_Max.lastOpenedAt,
   GROUP_CONCAT(Tags.name, ', ') AS tagsNames,
   GROUP_CONCAT(Tags.id, ', ') AS tagsIds
@@ -156,6 +158,7 @@ SELECT
   D.notes,
   D.thumbnail,
   D.profileId,
+  D.targetApp,
   P.name AS profileName,
   P.priority AS profilePriority,
   DOL_Max.lastOpenedAt,
@@ -224,7 +227,7 @@ resetOpenedCount:
 UPDATE Deepr SET openedCount = 0 WHERE id = ?;
 
 updateDeeplink:
-UPDATE Deepr SET link = ? , name = ?, notes = ?, thumbnail = ?, isFavourite = ?, profileId = ? WHERE id = ?;
+UPDATE Deepr SET link = ? , name = ?, notes = ?, thumbnail = ?, isFavourite = ?, profileId = ?, targetApp = ? WHERE id = ?;
 
 countDeepr:
 SELECT COUNT(*) FROM Deepr;

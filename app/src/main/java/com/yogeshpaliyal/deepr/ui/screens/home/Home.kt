@@ -149,6 +149,7 @@ import compose.icons.tablericons.ArrowsSort
 import compose.icons.tablericons.Check
 import compose.icons.tablericons.Edit
 import compose.icons.tablericons.ExternalLink
+import compose.icons.tablericons.EyeOff
 import compose.icons.tablericons.Link
 import compose.icons.tablericons.Note
 import compose.icons.tablericons.Plus
@@ -940,7 +941,7 @@ fun Content(
         when (it) {
             is Click -> {
                 viewModel.incrementOpenedCount(it.item.id)
-                openDeeplink(context, it.item.link)
+                openDeeplink(context, it.item.link, it.item.targetApp)
                 analyticsManager.logEvent(
                     AnalyticsEvents.OPEN_LINK,
                     mapOf(AnalyticsParams.LINK_ID to it.item.id),
@@ -1008,6 +1009,11 @@ fun Content(
 
             is MenuItem.OpenWith -> {
                 openDeeplinkExternal(context, it.item.link)
+            }
+
+            is MenuItem.OpenInIncognito -> {
+                viewModel.incrementOpenedCount(it.item.id)
+                openDeeplink(context, it.item.link, com.yogeshpaliyal.deepr.util.TARGET_APP_INCOGNITO)
             }
 
             is ViewNote -> {
@@ -1143,6 +1149,16 @@ fun Content(
                         icon = TablerIcons.ExternalLink,
                         onClick = {
                             onItemClick(MenuItem.OpenWith(account))
+                        },
+                    )
+                }
+
+                item {
+                    MenuListItem(
+                        text = stringResource(R.string.open_in_incognito),
+                        icon = TablerIcons.EyeOff,
+                        onClick = {
+                            onItemClick(MenuItem.OpenInIncognito(account))
                         },
                     )
                 }

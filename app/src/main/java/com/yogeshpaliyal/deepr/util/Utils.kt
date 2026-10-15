@@ -13,27 +13,125 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+const val TARGET_APP_INCOGNITO = "incognito"
+
 fun openDeeplink(
     context: Context,
     link: String,
+    targetApp: String? = null,
 ): Boolean {
     if (!isValidDeeplink(link)) return false
     val normalizedLink = normalizeLink(link)
+    val uri = normalizedLink.toUri()
+
     return try {
-        val intent = Intent(Intent.ACTION_VIEW, normalizedLink.toUri())
-        context.startActivity(intent)
-        true
+        when {
+            targetApp == TARGET_APP_INCOGNITO -> {
+                openInIncognito(context, normalizedLink)
+            }
+            !targetApp.isNullOrBlank() -> {
+                val intent =
+                    Intent(Intent.ACTION_VIEW, uri).apply {
+                        setPackage(targetApp)
+                    }
+                context.startActivity(intent)
+                true
+            }
+            else -> {
+                val intent = Intent(Intent.ACTION_VIEW, uri)
+                context.startActivity(intent)
+                true
+            }
+        }
     } catch (e: Exception) {
         e.printStackTrace()
+        // If specific targetApp failed (e.g. app uninstalled), fallback to default ACTION_VIEW
+        if (!targetApp.isNullOrBlank()) {
+            try {
+                val fallbackIntent = Intent(Intent.ACTION_VIEW, uri)
+                context.startActivity(fallbackIntent)
+                return true
+            } catch (fallbackEx: Exception) {
+                fallbackEx.printStackTrace()
+            }
+        }
         Toast
             .makeText(
                 context,
                 context.getString(R.string.invalid_deeplink_toast, normalizedLink),
                 Toast.LENGTH_SHORT,
             ).show()
-        // Optionally, show a toast or a dialog to the user that the link is invalid
         false
     }
+}
+
+private fun openInIncognito(
+    context: Context,
+    normalizedLink: String,
+): Boolean {
+    val uri = normalizedLink.toUri()
+    val packageManager = context.packageManager
+
+    // 1. Check for Firefox Focus or DuckDuckGo (privacy-by-default browsers)
+    val privacyBrowsers =
+        listOf(
+            "org.mozilla.focus",
+            "com.duckduckgo.mobile.android",
+            "com.brave.browser",
+        )
+    for (pkg in privacyBrowsers) {
+        try {
+            packageManager.getPackageInfo(pkg, 0)
+            val intent =
+                Intent(Intent.ACTION_VIEW, uri).apply {
+                    setPackage(pkg)
+                }
+            context.startActivity(intent)
+            return true
+        } catch (_: Exception) {
+        }
+    }
+
+    // 2. Check for standard Firefox (supports OPEN_PRIVATE_TAB action)
+    val firefoxPackages = listOf("org.mozilla.firefox", "org.mozilla.firefox_beta")
+    for (ffPkg in firefoxPackages) {
+        try {
+            packageManager.getPackageInfo(ffPkg, 0)
+            val ffIntent =
+                Intent("org.mozilla.fenix.OPEN_PRIVATE_TAB", uri).apply {
+                    setPackage(ffPkg)
+                    setClassName(ffPkg, "org.mozilla.fenix.IntentReceiverActivity")
+                }
+            context.startActivity(ffIntent)
+            return true
+        } catch (_: Exception) {
+        }
+    }
+
+    // 3. Try Chrome or Chromium browsers with incognito extras
+    val chromePackages = listOf("com.android.chrome", "com.chrome.beta", "com.chrome.dev", "com.google.android.apps.chrome")
+    for (chromePkg in chromePackages) {
+        try {
+            packageManager.getPackageInfo(chromePkg, 0)
+            val intent =
+                Intent(Intent.ACTION_VIEW, uri).apply {
+                    setPackage(chromePkg)
+                    putExtra("com.google.android.apps.chrome.EXTRA_OPEN_NEW_INCOGNITO_TAB", true)
+                }
+            context.startActivity(intent)
+            return true
+        } catch (_: Exception) {
+        }
+    }
+
+    // 4. Fallback: try opening with generic VIEW intent
+    val defaultIntent =
+        Intent(Intent.ACTION_VIEW, uri).apply {
+            putExtra("com.google.android.apps.chrome.EXTRA_OPEN_NEW_INCOGNITO_TAB", true)
+            putExtra("private_tab", true)
+        }
+    context.startActivity(defaultIntent)
+    return true
 }
 
 fun openDeeplinkExternal(

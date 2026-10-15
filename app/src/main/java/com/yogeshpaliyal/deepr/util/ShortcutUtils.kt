@@ -24,7 +24,11 @@ fun createShortcut(
                 .setLongLabel(shortcutName)
                 .setIcon(getShortcutAppIcon(context, deepr.link, useLinkBasedIcon))
                 .setIntent(
-                    Intent(Intent.ACTION_VIEW, deepr.link.toUri()),
+                    Intent(Intent.ACTION_VIEW, deepr.link.toUri()).apply {
+                        if (deepr.targetApp.isNotBlank() && deepr.targetApp != TARGET_APP_INCOGNITO) {
+                            setPackage(deepr.targetApp)
+                        }
+                    },
                 ).build()
         if (alreadyExists) {
             // If the shortcut already exists, we update it

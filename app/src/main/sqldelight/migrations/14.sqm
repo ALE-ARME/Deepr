@@ -1,0 +1,3 @@
+-- Migration 14: Add targetApp column to Deepr table.
+-- Allows specifying a target application package or special action (e.g. browser incognito) to open the link.
+ALTER TABLE Deepr ADD COLUMN targetApp TEXT NOT NULL DEFAULT '';

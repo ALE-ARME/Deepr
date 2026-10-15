@@ -430,4 +430,9 @@
     <string name="web_unlock_request_title">Web Browser Unlock Request</string>
     <string name="web_unlock_request_desc">Tap to unlock the private links section on the web server.</string>
     <string name="lock_private_links">Lock Private Links</string>
+    <string name="open_with_app">Open with</string>
+    <string name="system_default">System default</string>
+    <string name="browser_incognito">Incognito / Private</string>
+    <string name="open_in_incognito">Open in Incognito</string>
+    <string name="open_with_selected_app">Open with %1$s</string>
 </resources>

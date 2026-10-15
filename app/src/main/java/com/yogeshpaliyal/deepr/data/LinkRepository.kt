@@ -170,6 +170,7 @@ interface LinkRepository {
         thumbnail: String,
         isFavourite: Long,
         profileId: Long,
+        targetApp: String = "",
     )
 
     suspend fun lastInsertRowId(): Long?
@@ -181,6 +182,7 @@ interface LinkRepository {
         thumbnail: String,
         isFavourite: Long,
         profileId: Long,
+        targetApp: String = "",
         id: Long,
     )
 

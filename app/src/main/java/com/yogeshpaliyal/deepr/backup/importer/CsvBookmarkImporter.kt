@@ -110,6 +110,7 @@ class CsvBookmarkImporter(
                                                 isFavourite = isFavourite,
                                                 createdAt = createdAt,
                                                 profileId = profileID,
+                                                targetApp = "",
                                             )
                                             val linkId = deeprQueries.lastInsertRowId().executeAsOne()
 
@@ -194,6 +195,7 @@ class CsvBookmarkImporter(
                                                 isFavourite = isFavourite,
                                                 createdAt = createdAt,
                                                 profileId = profileID,
+                                                targetApp = "",
                                             )
                                             val linkId = deeprQueries.lastInsertRowId().executeAsOne()
 
