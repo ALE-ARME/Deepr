@@ -51,6 +51,7 @@ import com.yogeshpaliyal.deepr.ui.screens.home.Dashboard2
 import com.yogeshpaliyal.deepr.ui.screens.home.TagSelectionScreen
 import com.yogeshpaliyal.deepr.ui.theme.DeeprTheme
 import com.yogeshpaliyal.deepr.util.LanguageUtil
+import com.yogeshpaliyal.deepr.util.extractUrlFromSharedText
 import com.yogeshpaliyal.deepr.viewmodel.AccountViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -157,11 +158,24 @@ class MainActivity : FragmentActivity() {
         val sharedText =
             when {
                 intent.action == Intent.ACTION_SEND -> {
-                    if (intent.type == "text/plain") {
-                        val link = intent.getStringExtra(Intent.EXTRA_TEXT)
-                        val title = intent.getStringExtra(Intent.EXTRA_TITLE)
-                        if (link != null) {
-                            SharedLink(link, title)
+                    if (intent.type == "text/plain" || intent.type?.startsWith("text/") == true) {
+                        val rawText = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
+                        val explicitTitle =
+                            intent
+                                .getCharSequenceExtra(Intent.EXTRA_TITLE)
+                                ?.toString()
+                                ?.trim()
+                                ?.takeIf { it.isNotEmpty() }
+                                ?: intent
+                                    .getCharSequenceExtra(Intent.EXTRA_SUBJECT)
+                                    ?.toString()
+                                    ?.trim()
+                                    ?.takeIf { it.isNotEmpty() }
+                        if (rawText != null) {
+                            val (extractedUrl, candidateTitle) = extractUrlFromSharedText(rawText)
+                            val finalLink = extractedUrl.ifBlank { rawText }
+                            val finalTitle = explicitTitle ?: candidateTitle
+                            SharedLink(finalLink, finalTitle)
                         } else {
                             null
                         }

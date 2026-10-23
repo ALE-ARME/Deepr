@@ -18,8 +18,8 @@ android {
         applicationId = "com.yogeshpaliyal.deepr"
         minSdk = 24
         targetSdk = 36
-        versionCode = 36
-        versionName = "1.0.35"
+        versionCode = 37
+        versionName = "1.0.36"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments +=

@@ -318,3 +318,54 @@ fun formatDateTime(milliseconds: Long?): String {
     val dateString: String? = sdf.format(Date(milliseconds))
     return dateString ?: ""
 }
+
+private val SHARED_URL_REGEX =
+    "([a-zA-Z][a-zA-Z0-9+.-]*://\\S+|www\\.\\S+)".toRegex(RegexOption.IGNORE_CASE)
+
+/**
+ * Extracts a URL and an optional candidate title from shared text.
+ * Returns Pair(url, candidateTitle).
+ */
+fun extractUrlFromSharedText(text: String): Pair<String, String?> {
+    if (text.isBlank()) return Pair("", null)
+
+    val match = SHARED_URL_REGEX.find(text)
+    if (match != null) {
+        val rawUrl = match.value.trimEnd('.', ',', ')', ']', '}', ';', '!', '?', '"', '\'')
+        val candidateTitle =
+            text
+                .replace(match.value, "")
+                .trim(' ', '\t', '\n', '\r', '-', ':', '|', '(', ')')
+                .takeIf { it.isNotBlank() }
+        return Pair(rawUrl, candidateTitle)
+    }
+
+    val trimmed = text.trim()
+    return Pair(trimmed, null)
+}
+
+/**
+ * Derives a human-readable fallback title from a URL if metadata title is missing.
+ */
+fun getFallbackTitleFromLink(link: String): String {
+    if (link.isBlank()) return ""
+    return try {
+        val uri = normalizeLink(link).toUri()
+        val host = uri.host?.removePrefix("www.")
+        val lastPath = uri.lastPathSegment?.trim()
+        if (!lastPath.isNullOrBlank() && lastPath != "/" && lastPath.length > 1) {
+            val decoded =
+                lastPath
+                    .replace('_', ' ')
+                    .replace('-', ' ')
+                    .trim()
+            decoded.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+        } else if (!host.isNullOrBlank()) {
+            host
+        } else {
+            ""
+        }
+    } catch (_: Exception) {
+        ""
+    }
+}

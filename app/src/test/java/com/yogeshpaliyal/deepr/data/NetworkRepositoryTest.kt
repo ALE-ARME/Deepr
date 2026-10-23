@@ -181,4 +181,41 @@ class NetworkRepositoryTest {
                 receivedUserAgent,
             )
         }
+
+    @Test
+    fun getLinkInfo_retriesWithBrowserUserAgentWhenCrawlerFails() =
+        runTest {
+            val userAgentsUsed = mutableListOf<String?>()
+            val mockEngine =
+                MockEngine { request ->
+                    val ua = request.headers["User-Agent"]
+                    userAgentsUsed.add(ua)
+                    if (ua == NetworkRepository.CRAWLER_USER_AGENT) {
+                        respond(
+                            content = "Forbidden",
+                            status = HttpStatusCode.Forbidden,
+                            headers = headersOf("Content-Type", "text/html"),
+                        )
+                    } else {
+                        respond(
+                            content = mockHtmlContent,
+                            status = HttpStatusCode.OK,
+                            headers = headersOf("Content-Type", "text/html"),
+                        )
+                    }
+                }
+
+            val httpClient = HttpClient(mockEngine)
+            val htmlParser = HtmlParser()
+            val repository = NetworkRepository(htmlParser, httpClient)
+
+            val result = repository.getLinkInfo("example.com")
+
+            assertTrue(result.isSuccess)
+            assertEquals("Test Title", result.getOrNull()?.title)
+            assertEquals(
+                listOf(NetworkRepository.CRAWLER_USER_AGENT, NetworkRepository.BROWSER_USER_AGENT),
+                userAgentsUsed,
+            )
+        }
 }

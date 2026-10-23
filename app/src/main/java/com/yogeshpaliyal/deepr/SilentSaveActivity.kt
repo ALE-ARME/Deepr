@@ -6,12 +6,15 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.lifecycle.lifecycleScope
 import com.yogeshpaliyal.deepr.data.LinkRepository
 import com.yogeshpaliyal.deepr.data.NetworkRepository
 import com.yogeshpaliyal.deepr.preference.AppPreferenceDataStore
+import com.yogeshpaliyal.deepr.util.extractUrlFromSharedText
+import com.yogeshpaliyal.deepr.util.getFallbackTitleFromLink
 import com.yogeshpaliyal.deepr.util.isValidDeeplink
 import com.yogeshpaliyal.deepr.util.normalizeLink
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -28,11 +31,12 @@ class SilentSaveActivity : ComponentActivity() {
     private val networkRepository: NetworkRepository by inject()
     private val preferenceDataStore: AppPreferenceDataStore by inject()
     private val deeprQueries: DeeprQueries by inject()
+    private val appCoroutineScope: CoroutineScope by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Store application context and scope for use after activity finishes
+        // Store application context for use after activity finishes
         val appContext = applicationContext
 
         // Handle the shared link
@@ -53,14 +57,34 @@ class SilentSaveActivity : ComponentActivity() {
         appContext: Context,
     ) {
         when {
-            intent.action == Intent.ACTION_SEND && intent.type == "text/plain" -> {
-                val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
-                val title = intent.getStringExtra(Intent.EXTRA_TITLE)
+            intent.action == Intent.ACTION_SEND && (intent.type?.startsWith("text/") == true || intent.type == null) -> {
+                val rawSharedText = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
+                val explicitTitle =
+                    intent
+                        .getCharSequenceExtra(Intent.EXTRA_TITLE)
+                        ?.toString()
+                        ?.trim()
+                        ?.takeIf { it.isNotEmpty() }
+                        ?: intent
+                            .getCharSequenceExtra(Intent.EXTRA_SUBJECT)
+                            ?.toString()
+                            ?.trim()
+                            ?.takeIf { it.isNotEmpty() }
+                        ?: intent.clipData
+                            ?.description
+                            ?.label
+                            ?.toString()
+                            ?.trim()
+                            ?.takeIf { it.isNotEmpty() }
 
-                if (sharedText != null) {
-                    val normalizedLink = normalizeLink(sharedText)
+                if (rawSharedText != null) {
+                    val (extractedUrl, candidateTitle) = extractUrlFromSharedText(rawSharedText)
+                    val linkCandidate = extractedUrl.ifBlank { rawSharedText }
+                    val normalizedLink = normalizeLink(linkCandidate)
+                    val finalTitle = explicitTitle ?: candidateTitle ?: ""
+
                     if (isValidDeeplink(normalizedLink)) {
-                        saveLinkSilently(normalizedLink, title ?: "", appContext)
+                        saveLinkSilently(normalizedLink, finalTitle, appContext)
                     } else {
                         showToast(appContext, appContext.getString(R.string.invalid_link_silent_save))
                     }
@@ -77,8 +101,8 @@ class SilentSaveActivity : ComponentActivity() {
         title: String,
         appContext: Context,
     ) {
-        // Launch in application scope so it continues after activity finishes
-        lifecycleScope.launch {
+        // Launch in application scope so it continues even if activity finishes or is destroyed
+        appCoroutineScope.launch {
             try {
                 val profileId = preferenceDataStore.getSilentSaveProfileId.first()
 
@@ -107,6 +131,11 @@ class SilentSaveActivity : ComponentActivity() {
                     }
                 }
 
+                // If title is still blank after network fetch, derive fallback title from link
+                if (finalTitle.isBlank()) {
+                    finalTitle = getFallbackTitleFromLink(link)
+                }
+
                 linkRepository.insertDeepr(
                     link = link,
                     name = finalTitle,
@@ -119,8 +148,10 @@ class SilentSaveActivity : ComponentActivity() {
 
                 showToast(appContext, appContext.getString(R.string.link_saved_silently))
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to save link silently: $link", e)
-                showToast(appContext, appContext.getString(R.string.failed_to_save_link))
+                if (e !is CancellationException) {
+                    Log.e(TAG, "Failed to save link silently: $link", e)
+                    showToast(appContext, appContext.getString(R.string.failed_to_save_link))
+                }
             }
         }
     }
@@ -132,10 +163,8 @@ class SilentSaveActivity : ComponentActivity() {
         context: Context,
         message: String,
     ) {
-        lifecycleScope.launch {
-            withContext(Dispatchers.Main) {
-                Toast.makeText(context.applicationContext, message, Toast.LENGTH_SHORT).show()
-            }
+        appCoroutineScope.launch(Dispatchers.Main) {
+            Toast.makeText(context.applicationContext, message, Toast.LENGTH_SHORT).show()
         }
         finish()
     }
