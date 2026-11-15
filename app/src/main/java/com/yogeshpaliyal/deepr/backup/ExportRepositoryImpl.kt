@@ -58,17 +58,21 @@ class ExportRepositoryImpl(
             // If URI is provided, export to that location
             if (uri != null) {
                 return@withContext try {
-                    context.contentResolver.openOutputStream(uri, "wt")?.use { outputStream ->
-                        csvWriter.writeToCsv(outputStream, profilesToExport, dataToExportInCsvFormat, settings)
+                    val outputStream =
+                        SafPermissionHelper.openWritableSafStream(context, uri)
+                            ?: return@withContext RequestResult.Error(context.getString(R.string.export_failed))
+                    outputStream.use { stream ->
+                        csvWriter.writeToCsv(stream, profilesToExport, dataToExportInCsvFormat, settings)
                     }
                     RequestResult.Success(
                         context.getString(
                             R.string.export_success,
-                            uri.toString(),
+                            SafPermissionHelper.formatUriForDisplay(uri.toString()),
                         ),
                     )
-                } catch (_: Exception) {
-                    RequestResult.Error(context.getString(R.string.export_failed))
+                } catch (e: Exception) {
+                    val detail = e.localizedMessage?.takeIf { it.isNotBlank() } ?: e.javaClass.simpleName
+                    RequestResult.Error("${context.getString(R.string.export_failed)}: $detail")
                 }
             }
 

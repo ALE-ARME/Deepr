@@ -224,6 +224,20 @@
     <string name="backup_location_not_selected">No backup location selected</string>
     <string name="select_interval">Select Interval</string>
     <string name="backup_interval_dialog_title">Select Backup Interval</string>
+    <string name="backup_now">Backup Now</string>
+    <string name="backup_now_description">Immediately save a CSV backup to the selected folder</string>
+    <string name="auto_backup_disabled">Auto Backup is disabled</string>
+    <string name="backup_invalid_location">Invalid backup folder location. Please select the folder again.</string>
+    <string name="backup_permission_expired">Folder permission expired or missing. Tap "Select Backup Location" to grant access again.</string>
+    <string name="backup_permission_denied">Backup permission denied: %s</string>
+    <string name="auto_backup_failed">Auto backup failed: %s</string>
+    <string name="auto_backup_success">Auto backup saved to %s</string>
+    <string name="sync_permission_expired">File permission expired or missing. Tap "Select Sync File" to grant access again.</string>
+    <string name="sync_permission_denied">Sync permission denied: %s</string>
+    <string name="permission_required_banner">Permission expired — tap to re-select</string>
+    <string name="saf_persist_failed">The selected storage provider did not grant persistent access. Please pick a folder/file from local device storage or Documents.</string>
+    <string name="backup_error_dialog_title">Operation Failed</string>
+    <string name="backup_error_dismiss">Dismiss</string>
 
     
     <string name="local_network_server">Local Network Server</string>

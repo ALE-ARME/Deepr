@@ -237,4 +237,26 @@
     <string name="browser_incognito">Incognito / Privato</string>
     <string name="open_in_incognito">Apri in Incognito</string>
     <string name="open_with_selected_app">Apri con %1$s</string>
+    <string name="auto_backup">Backup automatico</string>
+    <string name="auto_backup_description">Esegui automaticamente il backup dei link in un file CSV</string>
+    <string name="select_backup_location">Seleziona cartella di backup</string>
+    <string name="select_backup_location_description">Scegli la cartella per i backup automatici</string>
+    <string name="last_backup_time">Ultimo backup</string>
+    <string name="last_backup_time_never">Mai eseguito</string>
+    <string name="last_backup_time_format">%s</string>
+    <string name="backup_location_not_selected">Nessuna cartella di backup selezionata</string>
+    <string name="backup_now">Esegui backup ora</string>
+    <string name="backup_now_description">Salva subito un backup CSV nella cartella selezionata</string>
+    <string name="auto_backup_disabled">Il backup automatico è disattivato</string>
+    <string name="backup_invalid_location">Percorso della cartella di backup non valido. Seleziona nuovamente la cartella.</string>
+    <string name="backup_permission_expired">Permesso alla cartella scaduto o mancante. Tocca "Seleziona cartella di backup" per concedere di nuovo l\'accesso.</string>
+    <string name="backup_permission_denied">Permesso backup negato: %s</string>
+    <string name="auto_backup_failed">Backup automatico non riuscito: %s</string>
+    <string name="auto_backup_success">Backup automatico salvato in %s</string>
+    <string name="sync_permission_expired">Permesso al file scaduto o mancante. Tocca "Seleziona file di sincronizzazione" per concedere di nuovo l\'accesso.</string>
+    <string name="sync_permission_denied">Permesso sincronizzazione negato: %s</string>
+    <string name="permission_required_banner">Permesso scaduto — tocca per riselezionare</string>
+    <string name="saf_persist_failed">Il provider selezionato non ha concesso un permesso persistente. Scegli una cartella o un file dalla memoria locale del dispositivo.</string>
+    <string name="backup_error_dialog_title">Operazione non riuscita</string>
+    <string name="backup_error_dismiss">Chiudi</string>
 </resources>

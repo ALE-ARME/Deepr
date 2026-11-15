@@ -1,6 +1,5 @@
 package com.yogeshpaliyal.deepr.ui.screens
 
-import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -11,19 +10,27 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -31,15 +38,21 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yogeshpaliyal.deepr.R
+import com.yogeshpaliyal.deepr.backup.SafPermissionHelper
 import com.yogeshpaliyal.deepr.ui.LocalNavigator
 import com.yogeshpaliyal.deepr.ui.Screen
 import com.yogeshpaliyal.deepr.ui.components.ServerStatusBar
 import com.yogeshpaliyal.deepr.ui.components.SettingsItem
 import com.yogeshpaliyal.deepr.ui.components.SettingsSection
+import com.yogeshpaliyal.deepr.util.RequestResult
 import com.yogeshpaliyal.deepr.viewmodel.AccountViewModel
 import compose.icons.TablerIcons
+import compose.icons.tablericons.AlertTriangle
 import compose.icons.tablericons.ArrowLeft
 import compose.icons.tablericons.FileText
 import compose.icons.tablericons.InfoCircle
@@ -66,6 +79,9 @@ fun BackupScreenContent(
 ) {
     val backStack = LocalNavigator.current
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    var errorDialogMessage by remember { mutableStateOf<String?>(null) }
 
     // Launcher for picking CSV export location
     val csvExportLauncher =
@@ -86,6 +102,41 @@ fun BackupScreenContent(
     val autoBackupEnabled by viewModel.autoBackupEnabled.collectAsStateWithLifecycle()
     val autoBackupLocation by viewModel.autoBackupLocation.collectAsStateWithLifecycle()
     val lastBackupTime by viewModel.lastBackupTime.collectAsStateWithLifecycle()
+    val lastBackupError by viewModel.lastBackupError.collectAsStateWithLifecycle()
+
+    var hasSyncPermission by remember(syncFilePath) {
+        mutableStateOf(
+            syncFilePath.isEmpty() ||
+                !syncFilePath.startsWith("content://") ||
+                SafPermissionHelper.hasPersistedWritePermission(context, syncFilePath),
+        )
+    }
+
+    var hasBackupPermission by remember(autoBackupLocation) {
+        mutableStateOf(
+            autoBackupLocation.isEmpty() ||
+                SafPermissionHelper.hasPersistedWritePermission(context, autoBackupLocation),
+        )
+    }
+
+    DisposableEffect(lifecycleOwner, syncFilePath, autoBackupLocation) {
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    hasSyncPermission =
+                        syncFilePath.isEmpty() ||
+                        !syncFilePath.startsWith("content://") ||
+                        SafPermissionHelper.hasPersistedWritePermission(context, syncFilePath)
+                    hasBackupPermission =
+                        autoBackupLocation.isEmpty() ||
+                        SafPermissionHelper.hasPersistedWritePermission(context, autoBackupLocation)
+                }
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     // Launcher for picking sync file location
     val syncFileLauncher =
@@ -93,13 +144,12 @@ fun BackupScreenContent(
             contract = ActivityResultContracts.CreateDocument("text/markdown"),
         ) { uri ->
             uri?.let {
-                val contentResolver = context.contentResolver
-
-                val takeFlags: Int =
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                contentResolver.takePersistableUriPermission(uri, takeFlags)
-                viewModel.setSyncFilePath(it.toString())
+                if (SafPermissionHelper.takePersistableWritePermission(context, it)) {
+                    hasSyncPermission = true
+                    viewModel.setSyncFilePath(it.toString())
+                } else {
+                    errorDialogMessage = context.getString(R.string.saf_persist_failed)
+                }
             }
         }
 
@@ -109,26 +159,81 @@ fun BackupScreenContent(
             contract = ActivityResultContracts.OpenDocumentTree(),
         ) { uri ->
             uri?.let {
-                val contentResolver = context.contentResolver
-
-                val takeFlags: Int =
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                contentResolver.takePersistableUriPermission(uri, takeFlags)
-                viewModel.setAutoBackupLocation(it.toString())
+                if (SafPermissionHelper.takePersistableWritePermission(context, it)) {
+                    hasBackupPermission = true
+                    viewModel.setAutoBackupLocation(it.toString())
+                } else {
+                    errorDialogMessage = context.getString(R.string.saf_persist_failed)
+                }
             }
         }
 
-    LaunchedEffect(true) {
-        viewModel.exportResultFlow.collectLatest { message ->
-            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+    LaunchedEffect(Unit) {
+        viewModel.exportResultFlow.collectLatest { result ->
+            when (result) {
+                is RequestResult.Success -> {
+                    Toast.makeText(context, result.data, Toast.LENGTH_LONG).show()
+                }
+
+                is RequestResult.Error -> {
+                    errorDialogMessage = result.message
+                }
+            }
         }
     }
 
-    LaunchedEffect(true) {
-        viewModel.syncResultFlow.collectLatest { message ->
-            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+    LaunchedEffect(Unit) {
+        viewModel.syncResultFlow.collectLatest { result ->
+            when (result) {
+                is RequestResult.Success -> {
+                    Toast.makeText(context, result.data, Toast.LENGTH_LONG).show()
+                }
+
+                is RequestResult.Error -> {
+                    errorDialogMessage = result.message
+                }
+            }
         }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.autoBackupResultFlow.collectLatest { result ->
+            when (result) {
+                is RequestResult.Success -> {
+                    Toast.makeText(context, result.data, Toast.LENGTH_LONG).show()
+                }
+
+                is RequestResult.Error -> {
+                    errorDialogMessage = result.message
+                }
+            }
+        }
+    }
+
+    errorDialogMessage?.let { message ->
+        AlertDialog(
+            onDismissRequest = { errorDialogMessage = null },
+            title = {
+                Text(stringResource(R.string.backup_error_dialog_title))
+            },
+            text = {
+                Column(
+                    modifier =
+                        Modifier
+                            .heightIn(max = 360.dp)
+                            .verticalScroll(rememberScrollState()),
+                ) {
+                    SelectionContainer {
+                        Text(message)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { errorDialogMessage = null }) {
+                    Text(stringResource(R.string.backup_error_dismiss))
+                }
+            },
+        )
     }
 
     Scaffold(
@@ -212,16 +317,24 @@ fun BackupScreenContent(
 
                 AnimatedVisibility(syncEnabled) {
                     Column {
+                        if (syncFilePath.isNotEmpty() && !hasSyncPermission) {
+                            SettingsItem(
+                                TablerIcons.AlertTriangle,
+                                title = stringResource(R.string.permission_required_banner),
+                                description = stringResource(R.string.sync_permission_expired),
+                                isDestructive = true,
+                                onClick = {
+                                    syncFileLauncher.launch("deeplinks.md")
+                                },
+                            )
+                        }
+
                         SettingsItem(
                             TablerIcons.FileText,
                             title = stringResource(R.string.select_sync_file),
                             description =
                                 if (syncFilePath.isNotEmpty()) {
-                                    syncFilePath
-                                        .substringAfterLast("/")
-                                        .replace("%2F", "/")
-                                        .replace("%20", " ")
-                                        .replace("%3A", ":")
+                                    SafPermissionHelper.formatUriForDisplay(syncFilePath)
                                 } else {
                                     stringResource(R.string.select_sync_file_description)
                                 },
@@ -281,16 +394,36 @@ fun BackupScreenContent(
 
                 AnimatedVisibility(autoBackupEnabled) {
                     Column {
+                        if (autoBackupLocation.isNotEmpty() && !hasBackupPermission) {
+                            SettingsItem(
+                                TablerIcons.AlertTriangle,
+                                title = stringResource(R.string.permission_required_banner),
+                                description = stringResource(R.string.backup_permission_expired),
+                                isDestructive = true,
+                                onClick = {
+                                    backupLocationLauncher.launch(null)
+                                },
+                            )
+                        }
+
+                        if (lastBackupError.isNotBlank()) {
+                            SettingsItem(
+                                TablerIcons.AlertTriangle,
+                                title = stringResource(R.string.backup_error_dialog_title),
+                                description = lastBackupError,
+                                isDestructive = true,
+                                onClick = {
+                                    errorDialogMessage = lastBackupError
+                                },
+                            )
+                        }
+
                         SettingsItem(
                             TablerIcons.FileText,
                             title = stringResource(R.string.select_backup_location),
                             description =
                                 if (autoBackupLocation.isNotEmpty()) {
-                                    autoBackupLocation
-                                        .substringAfterLast("/")
-                                        .replace("%2F", "/")
-                                        .replace("%20", " ")
-                                        .replace("%3A", ":")
+                                    SafPermissionHelper.formatUriForDisplay(autoBackupLocation)
                                 } else {
                                     stringResource(R.string.select_backup_location_description)
                                 },
@@ -317,6 +450,17 @@ fun BackupScreenContent(
                                     stringResource(R.string.last_backup_time_never)
                                 },
                         )
+
+                        AnimatedVisibility(autoBackupLocation.isNotEmpty()) {
+                            SettingsItem(
+                                TablerIcons.Upload,
+                                title = stringResource(R.string.backup_now),
+                                description = stringResource(R.string.backup_now_description),
+                                onClick = {
+                                    viewModel.backupNow()
+                                },
+                            )
+                        }
                     }
                 }
             }

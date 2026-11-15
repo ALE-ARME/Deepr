@@ -5,6 +5,7 @@ import androidx.core.net.toUri
 import com.yogeshpaliyal.deepr.DeeprQueries
 import com.yogeshpaliyal.deepr.ListDeeprWithTagsAsc
 import com.yogeshpaliyal.deepr.R
+import com.yogeshpaliyal.deepr.backup.SafPermissionHelper
 import com.yogeshpaliyal.deepr.preference.AppPreferenceDataStore
 import com.yogeshpaliyal.deepr.util.RequestResult
 import kotlinx.coroutines.Dispatchers
@@ -34,31 +35,42 @@ class SyncRepositoryImpl(
                     return@withContext RequestResult.Error(context.getString(R.string.sync_file_not_selected))
                 }
 
-                val res =
-                    context.contentResolver.openOutputStream(filePath.toUri(), "wt")?.use {
-                        val count = deeprQueries.countDeepr().executeAsOne()
-                        if (count == 0L) {
-                            return@withContext RequestResult.Error(context.getString(R.string.no_data_to_export))
-                        }
+                if (filePath.startsWith("content://") &&
+                    !SafPermissionHelper.hasPersistedWritePermission(context, filePath)
+                ) {
+                    return@withContext RequestResult.Error(context.getString(R.string.sync_permission_expired))
+                }
 
-                        val dataToSync = deeprQueries.listDeeprWithTagsAsc().executeAsList()
-                        if (dataToSync.isEmpty()) {
-                            return@withContext RequestResult.Error(context.getString(R.string.no_data_available_export))
-                        }
+                val count = deeprQueries.countDeepr().executeAsOne()
+                if (count == 0L) {
+                    return@withContext RequestResult.Error(context.getString(R.string.no_data_to_export))
+                }
 
-                        writeMarkdownData(it, dataToSync)
-                        // Record sync time on successful completion
-                        recordSyncTime()
-                        RequestResult.Success(
-                            context.getString(
-                                R.string.sync_success,
-                                filePath,
-                            ),
-                        )
-                    }
-                res ?: RequestResult.Error(context.getString(R.string.sync_failed, ""))
+                val dataToSync = deeprQueries.listDeeprWithTagsAsc().executeAsList()
+                if (dataToSync.isEmpty()) {
+                    return@withContext RequestResult.Error(context.getString(R.string.no_data_available_export))
+                }
+
+                val outputStream =
+                    SafPermissionHelper.openWritableSafStream(context, filePath.toUri())
+                        ?: return@withContext RequestResult.Error(context.getString(R.string.sync_failed, ""))
+
+                outputStream.use { stream ->
+                    writeMarkdownData(stream, dataToSync)
+                }
+                recordSyncTime()
+                RequestResult.Success(
+                    context.getString(
+                        R.string.sync_success,
+                        SafPermissionHelper.formatUriForDisplay(filePath),
+                    ),
+                )
+            } catch (e: SecurityException) {
+                val detail = e.localizedMessage?.takeIf { it.isNotBlank() } ?: e.javaClass.simpleName
+                RequestResult.Error(context.getString(R.string.sync_permission_denied, detail))
             } catch (e: Exception) {
-                RequestResult.Error(context.getString(R.string.sync_failed, e.message))
+                val detail = e.localizedMessage?.takeIf { it.isNotBlank() } ?: e.javaClass.simpleName
+                RequestResult.Error(context.getString(R.string.sync_failed, detail))
             }
         }
     }
@@ -70,12 +82,24 @@ class SyncRepositoryImpl(
                     return@withContext RequestResult.Error(context.getString(R.string.no_file_path_provided))
                 }
 
-                val file = File(filePath)
-                if (!file.exists()) {
-                    return@withContext RequestResult.Success(true) // File doesn't exist yet, which is valid
-                }
+                val content =
+                    if (filePath.startsWith("content://")) {
+                        if (!SafPermissionHelper.hasPersistedReadPermission(context, filePath)) {
+                            return@withContext RequestResult.Error(context.getString(R.string.sync_permission_expired))
+                        }
+                        context.contentResolver
+                            .openInputStream(filePath.toUri())
+                            ?.bufferedReader()
+                            ?.use { it.readText() }
+                            .orEmpty()
+                    } else {
+                        val file = File(filePath)
+                        if (!file.exists()) {
+                            return@withContext RequestResult.Success(true)
+                        }
+                        file.readText()
+                    }
 
-                val content = file.readText()
                 val isValid = isValidMarkdownTable(content)
 
                 if (isValid) {
@@ -83,8 +107,12 @@ class SyncRepositoryImpl(
                 } else {
                     RequestResult.Error(context.getString(R.string.invalid_markdown_format))
                 }
+            } catch (e: SecurityException) {
+                val detail = e.localizedMessage?.takeIf { it.isNotBlank() } ?: e.javaClass.simpleName
+                RequestResult.Error(context.getString(R.string.sync_permission_denied, detail))
             } catch (e: Exception) {
-                RequestResult.Error(context.getString(R.string.file_validation_error, e.message))
+                val detail = e.localizedMessage?.takeIf { it.isNotBlank() } ?: e.javaClass.simpleName
+                RequestResult.Error(context.getString(R.string.file_validation_error, detail))
             }
         }
     }

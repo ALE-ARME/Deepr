@@ -7,6 +7,7 @@ import com.opencsv.CSVReaderBuilder
 import com.opencsv.exceptions.CsvException
 import com.yogeshpaliyal.deepr.DeeprQueries
 import com.yogeshpaliyal.deepr.backup.ImportResult
+import com.yogeshpaliyal.deepr.backup.SafPermissionHelper
 import com.yogeshpaliyal.deepr.preference.AppPreferenceDataStore
 import com.yogeshpaliyal.deepr.util.Constants
 import com.yogeshpaliyal.deepr.util.RequestResult
@@ -280,20 +281,26 @@ class CsvBookmarkImporter(
         settings[Constants.Settings.LANGUAGE_CODE]?.let {
             appPreferenceDataStore.setLanguageCode(it)
         }
-        settings[Constants.Settings.AUTO_BACKUP_ENABLED]?.toBooleanStrictOrNull()?.let {
-            appPreferenceDataStore.setAutoBackupEnabled(it)
-        }
-        settings[Constants.Settings.AUTO_BACKUP_LOCATION]?.let {
-            appPreferenceDataStore.setAutoBackupLocation(it)
-        }
         settings[Constants.Settings.AUTO_BACKUP_INTERVAL]?.toLongOrNull()?.let {
             appPreferenceDataStore.setAutoBackupInterval(it)
         }
-        settings[Constants.Settings.SYNC_ENABLED]?.toBooleanStrictOrNull()?.let {
-            appPreferenceDataStore.setSyncEnabled(it)
+        val importedBackupLocation = settings[Constants.Settings.AUTO_BACKUP_LOCATION].orEmpty()
+        if (importedBackupLocation.isNotEmpty() &&
+            SafPermissionHelper.hasPersistedWritePermission(context, importedBackupLocation)
+        ) {
+            appPreferenceDataStore.setAutoBackupLocation(importedBackupLocation)
+            settings[Constants.Settings.AUTO_BACKUP_ENABLED]?.toBooleanStrictOrNull()?.let {
+                appPreferenceDataStore.setAutoBackupEnabled(it)
+            }
         }
-        settings[Constants.Settings.SYNC_FILE_PATH]?.let {
-            appPreferenceDataStore.setSyncFilePath(it)
+        val importedSyncPath = settings[Constants.Settings.SYNC_FILE_PATH].orEmpty()
+        if (importedSyncPath.isNotEmpty() &&
+            SafPermissionHelper.hasPersistedWritePermission(context, importedSyncPath)
+        ) {
+            appPreferenceDataStore.setSyncFilePath(importedSyncPath)
+            settings[Constants.Settings.SYNC_ENABLED]?.toBooleanStrictOrNull()?.let {
+                appPreferenceDataStore.setSyncEnabled(it)
+            }
         }
         settings[Constants.Settings.SERVER_PORT]?.let {
             appPreferenceDataStore.setServerPort(it)

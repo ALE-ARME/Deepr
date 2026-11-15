@@ -282,14 +282,17 @@ class AccountViewModel(
     private val sortOrder: Flow<@SortType String> =
         preferenceDataStore.getSortingOrder
 
-    private val exportResultChannel = Channel<String>()
+    private val exportResultChannel = Channel<RequestResult<String>>(Channel.BUFFERED)
     val exportResultFlow = exportResultChannel.receiveAsFlow()
 
     private val importResultChannel = Channel<String>()
     val importResultFlow = importResultChannel.receiveAsFlow()
 
-    private val syncResultChannel = Channel<String>()
+    private val syncResultChannel = Channel<RequestResult<String>>(Channel.BUFFERED)
     val syncResultFlow = syncResultChannel.receiveAsFlow()
+
+    private val autoBackupResultChannel = Channel<RequestResult<String>>(Channel.BUFFERED)
+    val autoBackupResultFlow = autoBackupResultChannel.receiveAsFlow()
 
     private val syncValidationChannel = Channel<String>()
     val syncValidationFlow = syncValidationChannel.receiveAsFlow()
@@ -643,7 +646,7 @@ class AccountViewModel(
                     ),
                 )
             }
-            syncToMarkdown()
+            syncToMarkdown(notifyUser = false)
         }
     }
 
@@ -759,7 +762,7 @@ class AccountViewModel(
             val targetProfileId = profileId ?: selectedProfileId.first()
             linkRepository.updateDeeplink(newLink, newName, notes, thumbnail, if (isFavourite) 1L else 0L, targetProfileId, targetApp, id)
             modifyTagsForLink(id, tagsList)
-            syncToMarkdown()
+            syncToMarkdown(notifyUser = false)
             analyticsManager.logEvent(
                 com.yogeshpaliyal.deepr.analytics.AnalyticsEvents.EDIT_LINK,
                 mapOf(
@@ -774,14 +777,14 @@ class AccountViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             when (val result = exportRepository.exportToCsv(uri)) {
                 is RequestResult.Success -> {
-                    exportResultChannel.send("Export completed: ${result.data}")
+                    exportResultChannel.send(RequestResult.Success("Export completed: ${result.data}"))
                     analyticsManager.logEvent(
                         com.yogeshpaliyal.deepr.analytics.AnalyticsEvents.EXPORT_CSV,
                     )
                 }
 
                 is RequestResult.Error -> {
-                    exportResultChannel.send("Export failed: ${result.message}")
+                    exportResultChannel.send(RequestResult.Error("Export failed: ${result.message}"))
                 }
             }
         }
@@ -948,9 +951,22 @@ class AccountViewModel(
         preferenceDataStore.getLastBackupTime
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
 
+    val lastBackupError =
+        preferenceDataStore.getLastBackupError
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
     fun setAutoBackupEnabled(enabled: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             preferenceDataStore.setAutoBackupEnabled(enabled)
+            if (enabled) {
+                val location = preferenceDataStore.getAutoBackupLocation.first()
+                if (location.isNotEmpty()) {
+                    autoBackupResultChannel.send(autoBackupWorker.doWork())
+                }
+            } else {
+                preferenceDataStore.setLastBackupError("")
+                AutoBackupWorker.cancelBackup(autoBackupWorker.context)
+            }
         }
     }
 
@@ -963,12 +979,22 @@ class AccountViewModel(
     fun setAutoBackupLocation(location: String) {
         viewModelScope.launch(Dispatchers.IO) {
             preferenceDataStore.setAutoBackupLocation(location)
+            preferenceDataStore.setLastBackupError("")
+            if (preferenceDataStore.getAutoBackupEnabled.first() && location.isNotEmpty()) {
+                autoBackupResultChannel.send(autoBackupWorker.doWork())
+            }
         }
     }
 
     fun setAutoBackupInterval(interval: Long) {
         viewModelScope.launch(Dispatchers.IO) {
             preferenceDataStore.setAutoBackupInterval(interval)
+        }
+    }
+
+    fun backupNow() {
+        viewModelScope.launch(Dispatchers.IO) {
+            autoBackupResultChannel.send(autoBackupWorker.doWork())
         }
     }
 
@@ -999,21 +1025,15 @@ class AccountViewModel(
         }
     }
 
-    fun syncToMarkdown() {
+    fun syncToMarkdown(notifyUser: Boolean = true) {
         viewModelScope.launch(Dispatchers.IO) {
-            autoBackupWorker.doWork()
             val isEnabled = preferenceDataStore.getSyncEnabled.first()
             if (!isEnabled) {
                 return@launch
             }
-            when (val result = syncRepository.syncToMarkdown()) {
-                is RequestResult.Success -> {
-                    syncResultChannel.send(result.data)
-                }
-
-                is RequestResult.Error -> {
-                    syncResultChannel.send(result.message)
-                }
+            val result = syncRepository.syncToMarkdown()
+            if (notifyUser) {
+                syncResultChannel.send(result)
             }
         }
     }

@@ -33,6 +33,7 @@ class AppPreferenceDataStore(
         private val AUTO_BACKUP_LOCATION = stringPreferencesKey("auto_backup_location")
         private val AUTO_BACKUP_INTERVAL = longPreferencesKey("auto_backup_interval")
         private val LAST_BACKUP_TIME = longPreferencesKey("last_backup_time")
+        private val LAST_BACKUP_ERROR = stringPreferencesKey("last_backup_error")
         private val DEFAULT_PAGE_FAVOURITES = booleanPreferencesKey("default_page_favourites")
         private val IS_THUMBNAIL_ENABLE = booleanPreferencesKey("is_thumbnail_enable")
         private val SERVER_PORT = stringPreferencesKey("server_port")
@@ -109,6 +110,11 @@ class AppPreferenceDataStore(
     val getLastBackupTime: Flow<Long> =
         context.appDataStore.data.map { preferences ->
             preferences[LAST_BACKUP_TIME] ?: 0L // Default to 0 (never backed up)
+        }
+
+    val getLastBackupError: Flow<String> =
+        context.appDataStore.data.map { preferences ->
+            preferences[LAST_BACKUP_ERROR] ?: ""
         }
 
     val getDefaultPageFavourites: Flow<Boolean> =
@@ -254,6 +260,12 @@ class AppPreferenceDataStore(
         }
     }
 
+    suspend fun setLastBackupError(error: String) {
+        context.appDataStore.edit { prefs ->
+            prefs[LAST_BACKUP_ERROR] = error
+        }
+    }
+
     suspend fun setDefaultPageFavourites(favourites: Boolean) {
         context.appDataStore.edit { prefs ->
             prefs[DEFAULT_PAGE_FAVOURITES] = favourites
@@ -361,11 +373,7 @@ class AppPreferenceDataStore(
         settings[Constants.Settings.HIDE_DATE_OF_CREATION] = getHideDateOfCreation.first().toString()
 
         settings[Constants.Settings.LANGUAGE_CODE] = getLanguageCode.first()
-        settings[Constants.Settings.AUTO_BACKUP_ENABLED] = getAutoBackupEnabled.first().toString()
-        settings[Constants.Settings.AUTO_BACKUP_LOCATION] = getAutoBackupLocation.first()
         settings[Constants.Settings.AUTO_BACKUP_INTERVAL] = getAutoBackupInterval.first().toString()
-        settings[Constants.Settings.SYNC_ENABLED] = getSyncEnabled.first().toString()
-        settings[Constants.Settings.SYNC_FILE_PATH] = getSyncFilePath.first()
         settings[Constants.Settings.SERVER_PORT] = getServerPort.first()
         settings[Constants.Settings.SERVER_INACTIVITY_TIMEOUT] =
             getServerInactivityTimeoutMinutes.first().toString()

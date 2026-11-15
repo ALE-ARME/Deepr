@@ -7,6 +7,7 @@ import com.yogeshpaliyal.deepr.GetAllTagsWithCount
 import com.yogeshpaliyal.deepr.GetLinksAndTags
 import com.yogeshpaliyal.deepr.Profile
 import com.yogeshpaliyal.deepr.Tags
+import com.yogeshpaliyal.deepr.backup.AutoBackupWorker
 import com.yogeshpaliyal.deepr.backup.GoogleDriveAutoBackupWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -20,6 +21,7 @@ class LinkRepositoryImpl(
      */
     private fun scheduleAutoBackup() {
         GoogleDriveAutoBackupWorker.scheduleBackup(context)
+        AutoBackupWorker.scheduleBackup(context)
     }
 
     // Profile operations
