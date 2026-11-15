@@ -177,6 +177,8 @@ fun SettingsScreen(
 
                 DriveSettingsItem()
 
+                CalDavSettingsItem()
+
                 SettingsItem(
                     TablerIcons.Server,
                     title = stringResource(R.string.local_network_server),

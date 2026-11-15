@@ -1,0 +1,15 @@
+package com.yogeshpaliyal.deepr.caldav
+
+import android.content.Context
+import com.yogeshpaliyal.deepr.DeeprQueries
+import com.yogeshpaliyal.deepr.preference.AppPreferenceDataStore
+import kotlinx.coroutines.CoroutineScope
+
+interface CalDavSyncManagerFactory {
+    fun create(
+        context: Context,
+        deeprQueries: DeeprQueries,
+        preferenceDataStore: AppPreferenceDataStore,
+        appScope: CoroutineScope,
+    ): CalDavSyncManager
+}

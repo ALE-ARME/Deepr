@@ -1,0 +1,58 @@
+-- Migration 15: Add CalDAV bidirectional sync metadata columns, tombstones table, and update triggers.
+ALTER TABLE Deepr ADD COLUMN syncUid TEXT NOT NULL DEFAULT '';
+ALTER TABLE Deepr ADD COLUMN syncEtag TEXT NOT NULL DEFAULT '';
+ALTER TABLE Deepr ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE Deepr ADD COLUMN lastSyncedAt INTEGER NOT NULL DEFAULT 0;
+
+UPDATE Deepr
+SET updatedAt = CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)
+WHERE updatedAt = 0;
+
+CREATE INDEX IF NOT EXISTS idx_deepr_syncUid ON Deepr(syncUid);
+
+CREATE TABLE IF NOT EXISTS DeletedSyncItem (
+id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+syncUid TEXT NOT NULL UNIQUE,
+deletedAt INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TRIGGER IF NOT EXISTS trg_deepr_after_insert
+AFTER INSERT ON Deepr
+WHEN new.updatedAt = 0
+BEGIN
+UPDATE Deepr
+SET updatedAt = CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)
+WHERE id = new.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_deepr_after_update
+AFTER UPDATE OF link, name, notes, thumbnail, isFavourite, profileId, targetApp ON Deepr
+BEGIN
+UPDATE Deepr
+SET updatedAt = CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)
+WHERE id = new.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_deepr_after_delete
+AFTER DELETE ON Deepr
+WHEN old.syncUid != ''
+BEGIN
+INSERT OR REPLACE INTO DeletedSyncItem (syncUid, deletedAt)
+VALUES (old.syncUid, CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER));
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_linktags_after_insert
+AFTER INSERT ON LinkTags
+BEGIN
+UPDATE Deepr
+SET updatedAt = CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)
+WHERE id = new.linkId;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_linktags_after_delete
+AFTER DELETE ON LinkTags
+BEGIN
+UPDATE Deepr
+SET updatedAt = CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)
+WHERE id = old.linkId;
+END;

@@ -40,6 +40,7 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.rememberSavedStateNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import androidx.navigation3.ui.rememberSceneSetupNavEntryDecorator
+import com.yogeshpaliyal.deepr.caldav.CalDavSyncManager
 import com.yogeshpaliyal.deepr.preference.AppPreferenceDataStore
 import com.yogeshpaliyal.deepr.ui.BaseScreen
 import com.yogeshpaliyal.deepr.ui.LocalNavigator
@@ -72,6 +73,7 @@ data class ClipboardLink(
 class MainActivity : FragmentActivity() {
     val sharingLink = MutableStateFlow<SharedLink?>(null)
     private val viewModel: AccountViewModel by inject()
+    private val calDavSyncManager: CalDavSyncManager by inject()
 
     override fun attachBaseContext(newBase: Context?) {
         super.attachBaseContext(
@@ -106,6 +108,7 @@ class MainActivity : FragmentActivity() {
 
         getLinkFromIntent(intent)
         handlePrivateUnlockIntent(intent)
+        calDavSyncManager.onAppStartup()
 
         setContent {
             val isProUser = BuildConfig.APPLICATION_ID.contains(".pro")

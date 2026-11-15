@@ -23,8 +23,15 @@ notes TEXT NOT NULL DEFAULT '',
 thumbnail TEXT NOT NULL DEFAULT '',
 profileId INTEGER NOT NULL DEFAULT 1,
 targetApp TEXT NOT NULL DEFAULT '',
+syncUid TEXT NOT NULL DEFAULT '',
+syncEtag TEXT NOT NULL DEFAULT '',
+updatedAt INTEGER NOT NULL DEFAULT 0,
+lastSyncedAt INTEGER NOT NULL DEFAULT 0,
 FOREIGN KEY (profileId) REFERENCES Profile(id) ON DELETE CASCADE
 );
+
+CREATE INDEX IF NOT EXISTS idx_deepr_syncUid
+ON Deepr(syncUid);
 
 -- isGlobal = 1 means the tag is global and visible from every profile.
 -- isGlobal = 0 means the tag is visible only from the profiles it is bound to in TagProfiles.
@@ -61,6 +68,53 @@ deeplinkId INTEGER NOT NULL,
 openedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 FOREIGN KEY (deeplinkId) REFERENCES Deepr(id) ON DELETE CASCADE
 );
+
+CREATE TABLE DeletedSyncItem (
+id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+syncUid TEXT NOT NULL UNIQUE,
+deletedAt INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TRIGGER IF NOT EXISTS trg_deepr_after_insert
+AFTER INSERT ON Deepr
+WHEN new.updatedAt = 0
+BEGIN
+UPDATE Deepr
+SET updatedAt = CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)
+WHERE id = new.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_deepr_after_update
+AFTER UPDATE OF link, name, notes, thumbnail, isFavourite, profileId, targetApp ON Deepr
+BEGIN
+UPDATE Deepr
+SET updatedAt = CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)
+WHERE id = new.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_deepr_after_delete
+AFTER DELETE ON Deepr
+WHEN old.syncUid != ''
+BEGIN
+INSERT OR REPLACE INTO DeletedSyncItem (syncUid, deletedAt)
+VALUES (old.syncUid, CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER));
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_linktags_after_insert
+AFTER INSERT ON LinkTags
+BEGIN
+UPDATE Deepr
+SET updatedAt = CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)
+WHERE id = new.linkId;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_linktags_after_delete
+AFTER DELETE ON LinkTags
+BEGIN
+UPDATE Deepr
+SET updatedAt = CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)
+WHERE id = old.linkId;
+END;
 
 lastInsertRowId:
 SELECT last_insert_rowid();
@@ -387,4 +441,69 @@ DELETE FROM Tags;
 
 countProfiles:
 SELECT COUNT(*) FROM Profile;
+
+-- CalDAV sync queries
+getLinksForCalDavSync:
+SELECT
+  D.id,
+  D.link,
+  D.name,
+  D.createdAt,
+  D.openedCount,
+  D.isFavourite,
+  D.notes,
+  D.thumbnail,
+  D.profileId,
+  D.targetApp,
+  D.syncUid,
+  D.syncEtag,
+  D.updatedAt,
+  D.lastSyncedAt,
+  P.name AS profileName,
+  P.isPrivate AS profileIsPrivate
+FROM Deepr AS D
+JOIN Profile AS P ON D.profileId = P.id
+WHERE (:includePrivate = 1 OR P.isPrivate = 0);
+
+updateDeeprSyncState:
+UPDATE Deepr
+SET syncUid = ?, syncEtag = ?, updatedAt = ?, lastSyncedAt = ?
+WHERE id = ?;
+
+updateDeeprFromSync:
+UPDATE Deepr
+SET link = ?, name = ?, notes = ?, thumbnail = ?, isFavourite = ?, profileId = ?, targetApp = ?, openedCount = ?
+WHERE id = ?;
+
+insertDeeprFromSync:
+INSERT INTO Deepr (
+  link,
+  name,
+  openedCount,
+  notes,
+  thumbnail,
+  isFavourite,
+  createdAt,
+  profileId,
+  targetApp,
+  syncUid,
+  syncEtag,
+  updatedAt,
+  lastSyncedAt
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+getDeeprBySyncUid:
+SELECT * FROM Deepr WHERE syncUid = ?;
+
+clearSyncUidBeforeDelete:
+UPDATE Deepr SET syncUid = '' WHERE id = ?;
+
+getAllDeletedSyncItems:
+SELECT * FROM DeletedSyncItem;
+
+deleteDeletedSyncItemByUid:
+DELETE FROM DeletedSyncItem WHERE syncUid = ?;
+
+clearAllDeletedSyncItems:
+DELETE FROM DeletedSyncItem;
 

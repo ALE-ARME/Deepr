@@ -54,6 +54,21 @@ class AppPreferenceDataStore(
             booleanPreferencesKey("clipboard_link_detection_enabled")
         private val HIDE_LINK_URL = booleanPreferencesKey("hide_link_url")
         private val HIDE_DATE_OF_CREATION = booleanPreferencesKey("hide_date_of_creation")
+
+        // CalDAV synchronization keys (excluded from CSV export)
+        private val CALDAV_ENABLED = booleanPreferencesKey("caldav_enabled")
+        private val CALDAV_SERVER_URL = stringPreferencesKey("caldav_server_url")
+        private val CALDAV_USERNAME = stringPreferencesKey("caldav_username")
+        private val CALDAV_ENCRYPTED_PASSWORD = stringPreferencesKey("caldav_encrypted_password")
+        private val CALDAV_COLLECTION_URL = stringPreferencesKey("caldav_collection_url")
+        private val CALDAV_COLLECTION_NAME = stringPreferencesKey("caldav_collection_name")
+        private val CALDAV_TRUST_SELF_SIGNED = booleanPreferencesKey("caldav_trust_self_signed")
+        private val CALDAV_SYNC_PRIVATE = booleanPreferencesKey("caldav_sync_private")
+        private val CALDAV_SYNC_ON_STARTUP = booleanPreferencesKey("caldav_sync_on_startup")
+        private val CALDAV_SYNC_ON_SAVE = booleanPreferencesKey("caldav_sync_on_save")
+        private val CALDAV_SYNC_INTERVAL_HOURS = longPreferencesKey("caldav_sync_interval_hours")
+        private val CALDAV_LAST_SYNC_TIME = longPreferencesKey("caldav_last_sync_time")
+        private val CALDAV_LAST_SYNC_STATUS = stringPreferencesKey("caldav_last_sync_status")
     }
 
     val getSortingOrder: Flow<@SortType String> =
@@ -186,6 +201,71 @@ class AppPreferenceDataStore(
     val getHideDateOfCreation: Flow<Boolean> =
         context.appDataStore.data.map { preferences ->
             preferences[HIDE_DATE_OF_CREATION] ?: false // Default to false (date shown)
+        }
+
+    val getCalDavEnabled: Flow<Boolean> =
+        context.appDataStore.data.map { preferences ->
+            preferences[CALDAV_ENABLED] ?: false
+        }
+
+    val getCalDavServerUrl: Flow<String> =
+        context.appDataStore.data.map { preferences ->
+            preferences[CALDAV_SERVER_URL] ?: ""
+        }
+
+    val getCalDavUsername: Flow<String> =
+        context.appDataStore.data.map { preferences ->
+            preferences[CALDAV_USERNAME] ?: ""
+        }
+
+    val getCalDavEncryptedPassword: Flow<String> =
+        context.appDataStore.data.map { preferences ->
+            preferences[CALDAV_ENCRYPTED_PASSWORD] ?: ""
+        }
+
+    val getCalDavCollectionUrl: Flow<String> =
+        context.appDataStore.data.map { preferences ->
+            preferences[CALDAV_COLLECTION_URL] ?: ""
+        }
+
+    val getCalDavCollectionName: Flow<String> =
+        context.appDataStore.data.map { preferences ->
+            preferences[CALDAV_COLLECTION_NAME] ?: ""
+        }
+
+    val getCalDavTrustSelfSigned: Flow<Boolean> =
+        context.appDataStore.data.map { preferences ->
+            preferences[CALDAV_TRUST_SELF_SIGNED] ?: false
+        }
+
+    val getCalDavSyncPrivate: Flow<Boolean> =
+        context.appDataStore.data.map { preferences ->
+            preferences[CALDAV_SYNC_PRIVATE] ?: false
+        }
+
+    val getCalDavSyncOnStartup: Flow<Boolean> =
+        context.appDataStore.data.map { preferences ->
+            preferences[CALDAV_SYNC_ON_STARTUP] ?: true
+        }
+
+    val getCalDavSyncOnSave: Flow<Boolean> =
+        context.appDataStore.data.map { preferences ->
+            preferences[CALDAV_SYNC_ON_SAVE] ?: true
+        }
+
+    val getCalDavSyncIntervalHours: Flow<Long> =
+        context.appDataStore.data.map { preferences ->
+            preferences[CALDAV_SYNC_INTERVAL_HOURS] ?: 6L
+        }
+
+    val getCalDavLastSyncTime: Flow<Long> =
+        context.appDataStore.data.map { preferences ->
+            preferences[CALDAV_LAST_SYNC_TIME] ?: 0L
+        }
+
+    val getCalDavLastSyncStatus: Flow<String> =
+        context.appDataStore.data.map { preferences ->
+            preferences[CALDAV_LAST_SYNC_STATUS] ?: ""
         }
 
     suspend fun setSortingOrder(order: @SortType String) {
@@ -340,6 +420,82 @@ class AppPreferenceDataStore(
     suspend fun setHideDateOfCreation(hide: Boolean) {
         context.appDataStore.edit { prefs ->
             prefs[HIDE_DATE_OF_CREATION] = hide
+        }
+    }
+
+    suspend fun setCalDavEnabled(enabled: Boolean) {
+        context.appDataStore.edit { prefs ->
+            prefs[CALDAV_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setCalDavServerUrl(url: String) {
+        context.appDataStore.edit { prefs ->
+            prefs[CALDAV_SERVER_URL] = url
+        }
+    }
+
+    suspend fun setCalDavUsername(username: String) {
+        context.appDataStore.edit { prefs ->
+            prefs[CALDAV_USERNAME] = username
+        }
+    }
+
+    suspend fun setCalDavEncryptedPassword(encryptedPassword: String) {
+        context.appDataStore.edit { prefs ->
+            prefs[CALDAV_ENCRYPTED_PASSWORD] = encryptedPassword
+        }
+    }
+
+    suspend fun setCalDavCollectionUrl(collectionUrl: String) {
+        context.appDataStore.edit { prefs ->
+            prefs[CALDAV_COLLECTION_URL] = collectionUrl
+        }
+    }
+
+    suspend fun setCalDavCollectionName(collectionName: String) {
+        context.appDataStore.edit { prefs ->
+            prefs[CALDAV_COLLECTION_NAME] = collectionName
+        }
+    }
+
+    suspend fun setCalDavTrustSelfSigned(trust: Boolean) {
+        context.appDataStore.edit { prefs ->
+            prefs[CALDAV_TRUST_SELF_SIGNED] = trust
+        }
+    }
+
+    suspend fun setCalDavSyncPrivate(syncPrivate: Boolean) {
+        context.appDataStore.edit { prefs ->
+            prefs[CALDAV_SYNC_PRIVATE] = syncPrivate
+        }
+    }
+
+    suspend fun setCalDavSyncOnStartup(syncOnStartup: Boolean) {
+        context.appDataStore.edit { prefs ->
+            prefs[CALDAV_SYNC_ON_STARTUP] = syncOnStartup
+        }
+    }
+
+    suspend fun setCalDavSyncOnSave(syncOnSave: Boolean) {
+        context.appDataStore.edit { prefs ->
+            prefs[CALDAV_SYNC_ON_SAVE] = syncOnSave
+        }
+    }
+
+    suspend fun setCalDavSyncIntervalHours(hours: Long) {
+        context.appDataStore.edit { prefs ->
+            prefs[CALDAV_SYNC_INTERVAL_HOURS] = hours
+        }
+    }
+
+    suspend fun setCalDavLastSyncInfo(
+        timestamp: Long,
+        status: String,
+    ) {
+        context.appDataStore.edit { prefs ->
+            prefs[CALDAV_LAST_SYNC_TIME] = timestamp
+            prefs[CALDAV_LAST_SYNC_STATUS] = status
         }
     }
 

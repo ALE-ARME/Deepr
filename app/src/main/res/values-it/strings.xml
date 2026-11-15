@@ -237,4 +237,44 @@
     <string name="browser_incognito">Incognito / Privato</string>
     <string name="open_in_incognito">Apri in Incognito</string>
     <string name="open_with_selected_app">Apri con %1$s</string>
+
+    <!-- Sincronizzazione CalDAV -->
+    <string name="caldav_sync">Sincronizzazione CalDAV</string>
+    <string name="caldav_sync_description">Sincronizza i link con Radicale, Nextcloud o Baïkal (VTODO)</string>
+    <string name="caldav_provider">Provider sincronizzazione</string>
+    <string name="caldav_provider_none">Nessuno (Disattivo)</string>
+    <string name="caldav_provider_caldav">CalDAV (VTODO)</string>
+    <string name="caldav_server_settings">Configurazione Server</string>
+    <string name="caldav_server_url">URL Server</string>
+    <string name="caldav_server_url_hint">https://caldav.example.com</string>
+    <string name="caldav_username">Username</string>
+    <string name="caldav_password">Password</string>
+    <string name="caldav_trust_self_signed">Accetta certificati non attendibili / autofirmati</string>
+    <string name="caldav_trust_self_signed_desc">Attiva per server self-hosted su LAN o Tailscale con certificati HTTPS autofirmati</string>
+    <string name="caldav_test_connection">Test Connessione</string>
+    <string name="caldav_testing_connection">Test in corso…</string>
+    <string name="caldav_collection">Collezione Task</string>
+    <string name="caldav_collection_none">Rilevamento automatico (o testa connessione)</string>
+    <string name="caldav_select_collection">Seleziona collezione VTODO</string>
+    <string name="caldav_connection_success">Connesso! Trovate %1$d collezioni VTODO.</string>
+    <string name="caldav_sync_options">Opzioni di Sincronizzazione</string>
+    <string name="caldav_sync_private">Sincronizza anche link e profili privati</string>
+    <string name="caldav_sync_private_desc">Includi profili e link privati nascosti nella sincronizzazione CalDAV</string>
+    <string name="caldav_sync_on_startup">Sincronizza all\'avvio</string>
+    <string name="caldav_sync_on_startup_desc">Controlla automaticamente le modifiche remote all\'apertura di Deepr</string>
+    <string name="caldav_sync_on_save">Sincronizza alle modifiche</string>
+    <string name="caldav_sync_on_save_desc">Sincronizza automaticamente dopo aggiunta, modifica o eliminazione di link</string>
+    <string name="caldav_sync_interval">Intervallo sync in background</string>
+    <string name="caldav_interval_hours">Ogni %1$d ore</string>
+    <string name="caldav_sync_now">Sincronizza ora</string>
+    <string name="caldav_syncing">Sincronizzazione con il server CalDAV…</string>
+    <string name="caldav_save_settings">Salva impostazioni</string>
+    <string name="caldav_settings_saved">Impostazioni CalDAV salvate</string>
+    <string name="caldav_last_sync">Ultima sync: %1$s</string>
+    <string name="caldav_never_synced">Mai sincronizzato</string>
+    <string name="caldav_not_enabled">La sincronizzazione CalDAV è disattivata</string>
+    <string name="caldav_error_missing_url">Inserisci un URL server CalDAV valido</string>
+    <string name="caldav_error_auth">Autenticazione fallita (verifica username e password)</string>
+    <string name="caldav_error_no_collections">Nessuna collezione task VTODO trovata sul server</string>
+    <string name="caldav_sync_success_summary">Sincronizzato (%1$d inviati, %2$d scaricati, %3$d eliminati)</string>
 </resources>

@@ -12,6 +12,8 @@ import com.yogeshpaliyal.deepr.backup.ExportRepository
 import com.yogeshpaliyal.deepr.backup.ExportRepositoryImpl
 import com.yogeshpaliyal.deepr.backup.ImportRepository
 import com.yogeshpaliyal.deepr.backup.ImportRepositoryImpl
+import com.yogeshpaliyal.deepr.caldav.CalDavSyncManager
+import com.yogeshpaliyal.deepr.caldav.CalDavSyncManagerFactoryImpl
 import com.yogeshpaliyal.deepr.data.HtmlParser
 import com.yogeshpaliyal.deepr.data.LinkRepository
 import com.yogeshpaliyal.deepr.data.LinkRepositoryImpl
@@ -83,7 +85,11 @@ class DeeprApplication : Application() {
 
                 single { AppPreferenceDataStore(androidContext()) }
 
-                single<LinkRepository> { LinkRepositoryImpl(androidContext(), get()) }
+                single<CalDavSyncManager> {
+                    CalDavSyncManagerFactoryImpl.create(androidContext(), get(), get(), get())
+                }
+
+                single<LinkRepository> { LinkRepositoryImpl(androidContext(), get(), get()) }
 
                 single<ExportRepository> { ExportRepositoryImpl(androidContext(), get(), get()) }
                 single<DriveSyncManager> { DriveSyncManagerFactoryImpl.create(androidContext(), get()) }

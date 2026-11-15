@@ -9,6 +9,7 @@ import com.yogeshpaliyal.deepr.DeeprQueries
 import com.yogeshpaliyal.deepr.R
 import com.yogeshpaliyal.deepr.Tags
 import com.yogeshpaliyal.deepr.analytics.AnalyticsManager
+import com.yogeshpaliyal.deepr.caldav.CalDavSyncManager
 import com.yogeshpaliyal.deepr.data.NetworkRepository
 import com.yogeshpaliyal.deepr.preference.AppPreferenceDataStore
 import com.yogeshpaliyal.deepr.util.LanguageUtil
@@ -80,6 +81,13 @@ open class LocalServerRepositoryImpl(
          * Cache for generated HTML content indexed by [Locale].
          */
         private val htmlCache = java.util.concurrent.ConcurrentHashMap<Locale, String>()
+
+        private fun notifyCalDavChanged() {
+            org.koin.core.context.GlobalContext
+                .getOrNull()
+                ?.getOrNull<CalDavSyncManager>()
+                ?.onLocalDataChanged()
+        }
     }
 
     private var server: EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration>? =
@@ -485,6 +493,7 @@ open class LocalServerRepositoryImpl(
                                     deeprQueries.deleteTagsForProfile(id)
                                     deeprQueries.deleteProfile(id)
                                 }
+                                notifyCalDavChanged()
                                 call.respond(HttpStatusCode.OK, SuccessResponse("Profile deleted successfully"))
                             } catch (e: Exception) {
                                 Log.e("LocalServer", "Error deleting profile", e)
@@ -639,6 +648,7 @@ open class LocalServerRepositoryImpl(
                                         deeprQueries.addTagToLink(linkId = newLinkId, tagId = tag.id)
                                     }
                                 }
+                                notifyCalDavChanged()
                                 call.respond(
                                     HttpStatusCode.Created,
                                     SuccessResponse("Link added successfully"),
@@ -758,6 +768,7 @@ open class LocalServerRepositoryImpl(
                                         deeprQueries.addTagToLink(linkId = id, tagId = tag.id)
                                     }
                                 }
+                                notifyCalDavChanged()
                                 call.respond(HttpStatusCode.OK, SuccessResponse("Link updated successfully"))
                             } catch (e: Exception) {
                                 Log.e("LocalServer", "Error updating link", e)
@@ -803,6 +814,7 @@ open class LocalServerRepositoryImpl(
                                         deeprQueries.deleteTag(tagId)
                                     }
                                 }
+                                notifyCalDavChanged()
                                 call.respond(HttpStatusCode.OK, SuccessResponse("Link deleted successfully"))
                             } catch (e: Exception) {
                                 Log.e("LocalServer", "Error deleting link", e)

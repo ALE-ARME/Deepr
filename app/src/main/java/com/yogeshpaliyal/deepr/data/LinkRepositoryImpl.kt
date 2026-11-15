@@ -8,18 +8,21 @@ import com.yogeshpaliyal.deepr.GetLinksAndTags
 import com.yogeshpaliyal.deepr.Profile
 import com.yogeshpaliyal.deepr.Tags
 import com.yogeshpaliyal.deepr.backup.GoogleDriveAutoBackupWorker
+import com.yogeshpaliyal.deepr.caldav.CalDavSyncManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class LinkRepositoryImpl(
     private val context: Context,
     private val deeprQueries: DeeprQueries,
+    private val calDavSyncManager: CalDavSyncManager? = null,
 ) : LinkRepository {
     /**
      * Schedules auto backup after data modification.
      */
     private fun scheduleAutoBackup() {
         GoogleDriveAutoBackupWorker.scheduleBackup(context)
+        calDavSyncManager?.onLocalDataChanged()
     }
 
     // Profile operations
