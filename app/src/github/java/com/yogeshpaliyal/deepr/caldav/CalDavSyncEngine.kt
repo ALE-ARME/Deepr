@@ -109,7 +109,19 @@ class CalDavSyncEngine(
 
                 when {
                     !localChanged && !remoteChanged -> {
-                        if (local.lastSyncedAt == 0L) {
+                        val serverMissingTagScopes =
+                            local.tags.isNotEmpty() && matchedRemote.vtodo.tagScopes.isEmpty()
+                        if (serverMissingTagScopes) {
+                            pushLocalLink(
+                                collectionUrl = effectiveCollectionUrl,
+                                targetHref = matchedRemote.href,
+                                etag = matchedRemote.etag.ifBlank { null },
+                                local = local.copy(syncUid = uid),
+                                syncTime = syncTime,
+                                config = config,
+                            )
+                            pushedCount++
+                        } else if (local.lastSyncedAt == 0L) {
                             localStore.updateSyncState(
                                 linkId = local.id,
                                 syncUid = uid,
@@ -138,7 +150,7 @@ class CalDavSyncEngine(
                             vtodo = matchedRemote.vtodo,
                             etag = matchedRemote.etag,
                             updatedAt = remoteModified,
-                            lastSyncedAt = syncTime,
+                            lastSyncedAt = maxOf(syncTime, remoteModified),
                         )
                         pulledCount++
                     }
@@ -156,12 +168,13 @@ class CalDavSyncEngine(
                             )
                             pushedCount++
                         } else {
+                            val resolvedUpdated = remoteModified.takeIf { it > 0L } ?: syncTime
                             localStore.upsertLinkFromRemote(
                                 existingLinkId = local.id,
                                 vtodo = matchedRemote.vtodo,
                                 etag = matchedRemote.etag,
-                                updatedAt = remoteModified.takeIf { it > 0L } ?: syncTime,
-                                lastSyncedAt = syncTime,
+                                updatedAt = resolvedUpdated,
+                                lastSyncedAt = maxOf(syncTime, resolvedUpdated),
                             )
                             pulledCount++
                         }
@@ -199,7 +212,7 @@ class CalDavSyncEngine(
                 vtodo = remote.vtodo,
                 etag = remote.etag,
                 updatedAt = remoteModified,
-                lastSyncedAt = syncTime,
+                lastSyncedAt = maxOf(syncTime, remoteModified),
             )
             pulledCount++
         }

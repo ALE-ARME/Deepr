@@ -529,4 +529,123 @@ class CalDavSyncEngineTest {
             assertEquals(expectedTagDetails, imported.tagDetails)
             assertEquals("Work", imported.profileName)
         }
+
+    @Test
+    fun `sync backfills X-DEEPR-TAG-SCOPES when already-synced remote item lacks tagScopes`() =
+        runTest {
+            val collectionUrl = "https://dav.example.com:8443/user/deepr/"
+            val legacyUid = "legacy-uid-1"
+            val legacyEtag = "\"legacy-etag-1\""
+
+            // Server initially contains an older VTODO without X-DEEPR-TAG-SCOPES
+            val remoteMap =
+                mutableMapOf(
+                    "${collectionUrl}$legacyUid.ics" to
+                        RemoteEntry(
+                            href = "${collectionUrl}$legacyUid.ics",
+                            etag = legacyEtag,
+                            ics =
+                                VTodoMapper.toIcs(
+                                    CalDavVTodo(
+                                        uid = legacyUid,
+                                        link = "https://legacy.example.com",
+                                        summary = "Legacy Link",
+                                        categories = listOf("sprint"),
+                                        tagScopes = emptyList(),
+                                        profileName = "Work",
+                                        lastModifiedMillis = 1700000000000L,
+                                    ),
+                                ),
+                        ),
+                )
+
+            val expectedDetails =
+                listOf(
+                    CalDavTag(
+                        name = "sprint",
+                        isGlobal = false,
+                        profileNames = listOf("Work"),
+                    ),
+                )
+
+            // Device A already synced this item earlier (updatedAt == lastSyncedAt, matching ETag)
+            val deviceAStore =
+                FakeLocalStore(
+                    initialLinks =
+                        listOf(
+                            CalDavLocalLink(
+                                id = 1L,
+                                link = "https://legacy.example.com",
+                                name = "Legacy Link",
+                                createdAt = "2025-01-01 10:00:00",
+                                openedCount = 0L,
+                                isFavourite = 0L,
+                                notes = "",
+                                thumbnail = "",
+                                profileId = 1L,
+                                targetApp = "",
+                                syncUid = legacyUid,
+                                syncEtag = legacyEtag,
+                                updatedAt = 1700000000000L,
+                                lastSyncedAt = 1700000000000L,
+                                profileName = "Work",
+                                profileIsPrivate = 0L,
+                                tags = listOf("sprint"),
+                                tagDetails = expectedDetails,
+                            ),
+                        ),
+                )
+
+            // Device B previously synced the legacy item too, so its tag started out global
+            val deviceBStore =
+                FakeLocalStore(
+                    initialLinks =
+                        listOf(
+                            CalDavLocalLink(
+                                id = 1L,
+                                link = "https://legacy.example.com",
+                                name = "Legacy Link",
+                                createdAt = "2025-01-01 10:00:00",
+                                openedCount = 0L,
+                                isFavourite = 0L,
+                                notes = "",
+                                thumbnail = "",
+                                profileId = 1L,
+                                targetApp = "",
+                                syncUid = legacyUid,
+                                syncEtag = legacyEtag,
+                                updatedAt = 1700000000000L,
+                                lastSyncedAt = 1700000000000L,
+                                profileName = "Work",
+                                profileIsPrivate = 0L,
+                                tags = listOf("sprint"),
+                                tagDetails = listOf(CalDavTag(name = "sprint", isGlobal = true)),
+                            ),
+                        ),
+                )
+
+            val mockHttp = KtorCalDavHttpTransport(createMockServerEngine(collectionUrl, remoteMap))
+
+            val engineA =
+                CalDavSyncEngine(
+                    localStore = deviceAStore,
+                    client = CalDavClient(mockHttp),
+                    clock = { 1700000100000L },
+                )
+            val resA = engineA.sync(baseConfig())
+            assertTrue(resA is CalDavSyncResult.Success)
+            assertEquals(1, (resA as CalDavSyncResult.Success).pushedCount)
+            assertTrue(remoteMap["${collectionUrl}$legacyUid.ics"]!!.ics.contains("X-DEEPR-TAG-SCOPES:"))
+
+            val engineB =
+                CalDavSyncEngine(
+                    localStore = deviceBStore,
+                    client = CalDavClient(mockHttp),
+                    clock = { 1700000200000L },
+                )
+            val resB = engineB.sync(baseConfig())
+            assertTrue(resB is CalDavSyncResult.Success)
+            assertEquals(1, (resB as CalDavSyncResult.Success).pulledCount)
+            assertEquals(expectedDetails, deviceBStore.links.single().tagDetails)
+        }
 }

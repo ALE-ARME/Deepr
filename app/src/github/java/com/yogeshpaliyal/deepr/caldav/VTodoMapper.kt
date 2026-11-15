@@ -1,7 +1,14 @@
 package com.yogeshpaliyal.deepr.caldav
 
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -31,21 +38,9 @@ data class CalDavVTodo(
 )
 
 object VTodoMapper {
-    @Serializable
-    private data class SerializedTagScope(
-        val name: String,
-        val global: Boolean = true,
-        val profiles: List<String> = emptyList(),
-    )
-
     private const val PRODID = "-//Deepr//CalDAV Sync//EN"
     private const val MAX_LINE_OCTETS = 75
     private val URL_REGEX = Regex("(https?://\\S+|[a-zA-Z][a-zA-Z0-9+.-]*://\\S+)")
-    private val tagScopeJson =
-        Json {
-            ignoreUnknownKeys = true
-            encodeDefaults = true
-        }
 
     fun toIcs(item: CalDavVTodo): String {
         val lines = mutableListOf<String>()
@@ -89,10 +84,10 @@ object VTodoMapper {
                     if (name.isEmpty()) {
                         null
                     } else {
-                        SerializedTagScope(
+                        CalDavTag(
                             name = name,
-                            global = scope.isGlobal,
-                            profiles =
+                            isGlobal = scope.isGlobal,
+                            profileNames =
                                 if (scope.isGlobal) {
                                     emptyList()
                                 } else {
@@ -105,7 +100,8 @@ object VTodoMapper {
                     }
                 }.distinctBy { it.name }
         if (cleanScopes.isNotEmpty()) {
-            lines += "X-DEEPR-TAG-SCOPES:${escapeText(tagScopeJson.encodeToString(cleanScopes))}"
+            val encodedScopes = encodeTagScopesJson(cleanScopes)
+            lines += "X-DEEPR-TAG-SCOPES:${escapeText(encodedScopes)}"
         }
 
         if (item.profileName.isNotBlank()) {
@@ -185,34 +181,7 @@ object VTodoMapper {
                 "X-DEEPR-TAG-SCOPES" -> {
                     val rawJson = unescapeText(value).trim()
                     if (rawJson.isNotEmpty()) {
-                        val decoded =
-                            runCatching {
-                                tagScopeJson.decodeFromString<List<SerializedTagScope>>(rawJson)
-                            }.getOrNull()
-                        if (decoded != null) {
-                            tagScopes =
-                                decoded
-                                    .mapNotNull { scope ->
-                                        val name = scope.name.trim()
-                                        if (name.isEmpty()) {
-                                            null
-                                        } else {
-                                            CalDavTag(
-                                                name = name,
-                                                isGlobal = scope.global,
-                                                profileNames =
-                                                    if (scope.global) {
-                                                        emptyList()
-                                                    } else {
-                                                        scope.profiles
-                                                            .map { it.trim() }
-                                                            .filter { it.isNotEmpty() }
-                                                            .distinct()
-                                                    },
-                                            )
-                                        }
-                                    }.distinctBy { it.name }
-                        }
+                        decodeTagScopesJson(rawJson)?.let { tagScopes = it }
                     }
                 }
                 "X-DEEPR-PROFILE" -> profileName = unescapeText(value).trim()
@@ -260,6 +229,67 @@ object VTodoMapper {
             lastModifiedMillis = effectiveLastModified,
         )
     }
+
+    private fun encodeTagScopesJson(scopes: List<CalDavTag>): String =
+        buildJsonArray {
+            scopes.forEach { scope ->
+                add(
+                    buildJsonObject {
+                        put("name", JsonPrimitive(scope.name))
+                        put("global", JsonPrimitive(scope.isGlobal))
+                        if (!scope.isGlobal && scope.profileNames.isNotEmpty()) {
+                            put(
+                                "profiles",
+                                buildJsonArray {
+                                    scope.profileNames.forEach { pName ->
+                                        add(JsonPrimitive(pName))
+                                    }
+                                },
+                            )
+                        }
+                    },
+                )
+            }
+        }.toString()
+
+    private fun decodeTagScopesJson(rawJson: String): List<CalDavTag>? =
+        runCatching {
+            Json
+                .parseToJsonElement(rawJson)
+                .jsonArray
+                .mapNotNull { element ->
+                    val obj = element.jsonObject
+                    val name =
+                        obj["name"]
+                            ?.jsonPrimitive
+                            ?.contentOrNull
+                            ?.trim()
+                            .orEmpty()
+                    if (name.isEmpty()) {
+                        null
+                    } else {
+                        val isGlobal = obj["global"]?.jsonPrimitive?.booleanOrNull ?: true
+                        val profiles =
+                            if (isGlobal) {
+                                emptyList()
+                            } else {
+                                obj["profiles"]
+                                    ?.jsonArray
+                                    ?.mapNotNull {
+                                        it.jsonPrimitive.contentOrNull
+                                            ?.trim()
+                                            ?.takeIf { s -> s.isNotEmpty() }
+                                    }?.distinct()
+                                    .orEmpty()
+                            }
+                        CalDavTag(
+                            name = name,
+                            isGlobal = isGlobal,
+                            profileNames = profiles,
+                        )
+                    }
+                }.distinctBy { it.name }
+        }.getOrNull()
 
     private fun extractUrlFallback(text: String): String? {
         if (text.isBlank()) return null
