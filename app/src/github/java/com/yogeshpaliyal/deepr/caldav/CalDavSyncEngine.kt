@@ -227,6 +227,7 @@ class CalDavSyncEngine(
                 summary = local.name.ifBlank { local.link },
                 description = local.notes,
                 categories = local.tags,
+                tagScopes = local.tagDetails.ifEmpty { local.tags.map { CalDavTag(name = it, isGlobal = true) } },
                 profileName = local.profileName,
                 isFavourite = local.isFavourite == 1L,
                 isPrivate = local.profileIsPrivate == 1L,

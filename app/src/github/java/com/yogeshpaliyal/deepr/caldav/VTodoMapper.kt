@@ -1,9 +1,17 @@
 package com.yogeshpaliyal.deepr.caldav
 
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+
+data class CalDavTag(
+    val name: String,
+    val isGlobal: Boolean = true,
+    val profileNames: List<String> = emptyList(),
+)
 
 data class CalDavVTodo(
     val uid: String,
@@ -11,6 +19,7 @@ data class CalDavVTodo(
     val summary: String,
     val description: String = "",
     val categories: List<String> = emptyList(),
+    val tagScopes: List<CalDavTag> = emptyList(),
     val profileName: String = "",
     val isFavourite: Boolean = false,
     val isPrivate: Boolean = false,
@@ -22,9 +31,21 @@ data class CalDavVTodo(
 )
 
 object VTodoMapper {
+    @Serializable
+    private data class SerializedTagScope(
+        val name: String,
+        val global: Boolean = true,
+        val profiles: List<String> = emptyList(),
+    )
+
     private const val PRODID = "-//Deepr//CalDAV Sync//EN"
     private const val MAX_LINE_OCTETS = 75
     private val URL_REGEX = Regex("(https?://\\S+|[a-zA-Z][a-zA-Z0-9+.-]*://\\S+)")
+    private val tagScopeJson =
+        Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = true
+        }
 
     fun toIcs(item: CalDavVTodo): String {
         val lines = mutableListOf<String>()
@@ -61,6 +82,32 @@ object VTodoMapper {
             lines += "CATEGORIES:${cleanTags.joinToString(",") { escapeText(it) }}"
         }
 
+        val cleanScopes =
+            item.tagScopes
+                .mapNotNull { scope ->
+                    val name = scope.name.trim()
+                    if (name.isEmpty()) {
+                        null
+                    } else {
+                        SerializedTagScope(
+                            name = name,
+                            global = scope.isGlobal,
+                            profiles =
+                                if (scope.isGlobal) {
+                                    emptyList()
+                                } else {
+                                    scope.profileNames
+                                        .map { it.trim() }
+                                        .filter { it.isNotEmpty() }
+                                        .distinct()
+                                },
+                        )
+                    }
+                }.distinctBy { it.name }
+        if (cleanScopes.isNotEmpty()) {
+            lines += "X-DEEPR-TAG-SCOPES:${escapeText(tagScopeJson.encodeToString(cleanScopes))}"
+        }
+
         if (item.profileName.isNotBlank()) {
             lines += "X-DEEPR-PROFILE:${escapeText(item.profileName)}"
         }
@@ -92,6 +139,7 @@ object VTodoMapper {
         var url = ""
         var description = ""
         val categories = mutableListOf<String>()
+        var tagScopes = emptyList<CalDavTag>()
         var profileName = ""
         var isFavourite = false
         var isPrivate = false
@@ -134,6 +182,39 @@ object VTodoMapper {
                         }
                     }
                 }
+                "X-DEEPR-TAG-SCOPES" -> {
+                    val rawJson = unescapeText(value).trim()
+                    if (rawJson.isNotEmpty()) {
+                        val decoded =
+                            runCatching {
+                                tagScopeJson.decodeFromString<List<SerializedTagScope>>(rawJson)
+                            }.getOrNull()
+                        if (decoded != null) {
+                            tagScopes =
+                                decoded
+                                    .mapNotNull { scope ->
+                                        val name = scope.name.trim()
+                                        if (name.isEmpty()) {
+                                            null
+                                        } else {
+                                            CalDavTag(
+                                                name = name,
+                                                isGlobal = scope.global,
+                                                profileNames =
+                                                    if (scope.global) {
+                                                        emptyList()
+                                                    } else {
+                                                        scope.profiles
+                                                            .map { it.trim() }
+                                                            .filter { it.isNotEmpty() }
+                                                            .distinct()
+                                                    },
+                                            )
+                                        }
+                                    }.distinctBy { it.name }
+                        }
+                    }
+                }
                 "X-DEEPR-PROFILE" -> profileName = unescapeText(value).trim()
                 "X-DEEPR-FAVOURITE" -> isFavourite = value.trim() == "1" || value.trim().equals("true", ignoreCase = true)
                 "X-DEEPR-PRIVATE" -> isPrivate = value.trim() == "1" || value.trim().equals("true", ignoreCase = true)
@@ -168,6 +249,7 @@ object VTodoMapper {
             summary = summary,
             description = description,
             categories = categories,
+            tagScopes = tagScopes,
             profileName = profileName,
             isFavourite = isFavourite,
             isPrivate = isPrivate,

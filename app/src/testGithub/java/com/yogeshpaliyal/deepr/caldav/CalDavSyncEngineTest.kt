@@ -65,6 +65,11 @@ class CalDavSyncEngineTest {
             updatedAt: Long,
             lastSyncedAt: Long,
         ) {
+            val scopesByName = vtodo.tagScopes.associateBy { it.name }
+            val resolvedTagDetails =
+                vtodo.categories.map { tagName ->
+                    scopesByName[tagName] ?: CalDavTag(name = tagName, isGlobal = true)
+                }
             if (existingLinkId != null) {
                 val idx = links.indexOfFirst { it.id == existingLinkId }
                 if (idx >= 0) {
@@ -74,6 +79,7 @@ class CalDavSyncEngineTest {
                             name = vtodo.summary,
                             notes = vtodo.description,
                             tags = vtodo.categories,
+                            tagDetails = resolvedTagDetails,
                             profileName = vtodo.profileName.ifBlank { "Default" },
                             profileIsPrivate = if (vtodo.isPrivate) 1L else 0L,
                             isFavourite = if (vtodo.isFavourite) 1L else 0L,
@@ -107,6 +113,7 @@ class CalDavSyncEngineTest {
                     profileName = vtodo.profileName.ifBlank { "Default" },
                     profileIsPrivate = if (vtodo.isPrivate) 1L else 0L,
                     tags = vtodo.categories,
+                    tagDetails = resolvedTagDetails,
                 ),
             )
         }
@@ -450,5 +457,76 @@ class CalDavSyncEngineTest {
                 "Fresh Remote Title",
                 localStore.links.first { it.syncUid == "uid-remote-wins" }.name,
             )
+        }
+
+    @Test
+    fun `sync pushes and restores tag specificity across devices`() =
+        runTest {
+            val collectionUrl = "https://dav.example.com:8443/user/deepr/"
+            val remoteMap = mutableMapOf<String, RemoteEntry>()
+            val expectedTagDetails =
+                listOf(
+                    CalDavTag(name = "shared", isGlobal = true),
+                    CalDavTag(
+                        name = "sprint",
+                        isGlobal = false,
+                        profileNames = listOf("Work", "Engineering"),
+                    ),
+                )
+
+            val deviceAStore =
+                FakeLocalStore(
+                    initialLinks =
+                        listOf(
+                            CalDavLocalLink(
+                                id = 1L,
+                                link = "https://scoped.example.com",
+                                name = "Scoped Bookmark",
+                                createdAt = "2025-01-01 10:00:00",
+                                openedCount = 0L,
+                                isFavourite = 0L,
+                                notes = "",
+                                thumbnail = "",
+                                profileId = 1L,
+                                targetApp = "",
+                                syncUid = "",
+                                syncEtag = "",
+                                updatedAt = 1700000000000L,
+                                lastSyncedAt = 0L,
+                                profileName = "Work",
+                                profileIsPrivate = 0L,
+                                tags = listOf("shared", "sprint"),
+                                tagDetails = expectedTagDetails,
+                            ),
+                        ),
+                )
+
+            val deviceBStore = FakeLocalStore()
+            val mockHttp = KtorCalDavHttpTransport(createMockServerEngine(collectionUrl, remoteMap))
+
+            val engineA =
+                CalDavSyncEngine(
+                    localStore = deviceAStore,
+                    client = CalDavClient(mockHttp),
+                    clock = { 1700000100000L },
+                )
+            val pushRes = engineA.sync(baseConfig())
+            assertTrue(pushRes is CalDavSyncResult.Success)
+            assertEquals(1, (pushRes as CalDavSyncResult.Success).pushedCount)
+
+            val engineB =
+                CalDavSyncEngine(
+                    localStore = deviceBStore,
+                    client = CalDavClient(mockHttp),
+                    clock = { 1700000200000L },
+                )
+            val pullRes = engineB.sync(baseConfig())
+            assertTrue(pullRes is CalDavSyncResult.Success)
+            assertEquals(1, (pullRes as CalDavSyncResult.Success).pulledCount)
+
+            val imported = deviceBStore.links.single()
+            assertEquals(listOf("shared", "sprint"), imported.tags)
+            assertEquals(expectedTagDetails, imported.tagDetails)
+            assertEquals("Work", imported.profileName)
         }
 }

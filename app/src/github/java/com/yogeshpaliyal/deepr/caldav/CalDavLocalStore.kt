@@ -20,6 +20,7 @@ data class CalDavLocalLink(
     val profileName: String,
     val profileIsPrivate: Long,
     val tags: List<String>,
+    val tagDetails: List<CalDavTag> = emptyList(),
 )
 
 data class CalDavDeletedItem(
@@ -59,11 +60,37 @@ class SqlDelightCalDavLocalStore(
 ) : CalDavLocalStore {
     override suspend fun getLinksForSync(includePrivate: Boolean): List<CalDavLocalLink> {
         val includePrivParam = if (includePrivate) 1L else 0L
+        val allowedProfiles =
+            deeprQueries
+                .getAllProfiles()
+                .executeAsList()
+                .filter { includePrivate || it.isPrivate == 0L }
+                .associate { it.id to it.name }
         return deeprQueries
             .getLinksForCalDavSync(includePrivate = includePrivParam)
             .executeAsList()
             .map { row ->
-                val tags = deeprQueries.getTagsForLink(row.id).executeAsList().map { it.name }
+                val tagRows = deeprQueries.getTagsForLink(row.id).executeAsList()
+                val tags = tagRows.map { it.name }
+                val tagDetails =
+                    tagRows.map { tag ->
+                        val isGlobal = tag.isGlobal == 1L
+                        val profileNames =
+                            if (isGlobal) {
+                                emptyList()
+                            } else {
+                                deeprQueries
+                                    .getProfilesForTag(tag.id)
+                                    .executeAsList()
+                                    .mapNotNull { allowedProfiles[it] }
+                                    .distinct()
+                            }
+                        CalDavTag(
+                            name = tag.name,
+                            isGlobal = isGlobal,
+                            profileNames = profileNames,
+                        )
+                    }
                 CalDavLocalLink(
                     id = row.id,
                     link = row.link,
@@ -82,6 +109,7 @@ class SqlDelightCalDavLocalStore(
                     profileName = row.profileName,
                     profileIsPrivate = row.profileIsPrivate,
                     tags = tags,
+                    tagDetails = tagDetails,
                 )
             }
     }
@@ -175,14 +203,55 @@ class SqlDelightCalDavLocalStore(
                     deeprQueries.lastInsertRowId().executeAsOne()
                 }
 
+            val tagScopesByName =
+                vtodo.tagScopes
+                    .filter { it.name.isNotBlank() }
+                    .associateBy { it.name.trim() }
+
             deeprQueries.deleteLinkRelations(linkId)
             vtodo.categories.forEach { rawTagName ->
                 val tagName = rawTagName.trim()
                 if (tagName.isNotEmpty()) {
-                    deeprQueries.insertTag(tagName, targetPrivateFlag, 1L)
-                    val tag = deeprQueries.getTagByName(tagName, targetPrivateFlag).executeAsOneOrNull()
-                    if (tag != null) {
-                        deeprQueries.addTagToLink(linkId, tag.id)
+                    val scope = tagScopesByName[tagName]
+                    if (scope != null) {
+                        val isGlobalFlag = if (scope.isGlobal) 1L else 0L
+                        deeprQueries.insertTag(tagName, targetPrivateFlag, isGlobalFlag)
+                        val tag = deeprQueries.getTagByName(tagName, targetPrivateFlag).executeAsOneOrNull()
+                        if (tag != null) {
+                            if (tag.isGlobal != isGlobalFlag) {
+                                deeprQueries.updateTag(tag.name, isGlobalFlag, tag.id)
+                            }
+                            if (scope.isGlobal) {
+                                val existingBindings = deeprQueries.getProfilesForTag(tag.id).executeAsList()
+                                if (existingBindings.isNotEmpty()) {
+                                    deeprQueries.deleteTagProfiles(tag.id)
+                                }
+                            } else {
+                                val resolvedProfileIds =
+                                    scope.profileNames
+                                        .map { it.trim() }
+                                        .filter { it.isNotEmpty() }
+                                        .distinct()
+                                        .map { pName -> resolveOrCreateProfile(pName, targetPrivateFlag) }
+                                        .toSet()
+                                        .ifEmpty { setOf(profileId) }
+                                val existingProfileIds =
+                                    deeprQueries.getProfilesForTag(tag.id).executeAsList().toSet()
+                                if (existingProfileIds != resolvedProfileIds) {
+                                    deeprQueries.deleteTagProfiles(tag.id)
+                                    resolvedProfileIds.forEach { pId ->
+                                        deeprQueries.insertTagProfile(tag.id, pId)
+                                    }
+                                }
+                            }
+                            deeprQueries.addTagToLink(linkId, tag.id)
+                        }
+                    } else {
+                        deeprQueries.insertTag(tagName, targetPrivateFlag, 1L)
+                        val tag = deeprQueries.getTagByName(tagName, targetPrivateFlag).executeAsOneOrNull()
+                        if (tag != null) {
+                            deeprQueries.addTagToLink(linkId, tag.id)
+                        }
                     }
                 }
             }

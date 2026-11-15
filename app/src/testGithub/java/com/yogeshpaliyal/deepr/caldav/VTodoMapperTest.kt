@@ -128,4 +128,41 @@ class VTodoMapperTest {
             """.trimIndent()
         assertNull(VTodoMapper.parseIcs(noUid))
     }
+
+    @Test
+    fun `toIcs and parseIcs preserve tagScopes with special characters and emojis`() {
+        val scopes =
+            listOf(
+                CalDavTag(name = "kotlin", isGlobal = true),
+                CalDavTag(
+                    name = "dev,ops;team",
+                    isGlobal = false,
+                    profileNames = listOf("Work;Main", "Studio 🚀,Lab"),
+                ),
+            )
+        val item =
+            CalDavVTodo(
+                uid = "tag-scope-1",
+                link = "https://example.com/scoped",
+                summary = "Scoped Tags",
+                categories = listOf("kotlin", "dev,ops;team"),
+                tagScopes = scopes,
+                profileName = "Work;Main",
+                lastModifiedMillis = 1715000000000L,
+            )
+
+        val ics = VTodoMapper.toIcs(item)
+        assertTrue(ics.contains("X-DEEPR-TAG-SCOPES:"))
+        ics.split("\r\n").filter { it.isNotEmpty() }.forEach { physicalLine ->
+            assertTrue(
+                "Line exceeds 75 octets: ${physicalLine.toByteArray(Charsets.UTF_8).size} bytes -> $physicalLine",
+                physicalLine.toByteArray(Charsets.UTF_8).size <= 75,
+            )
+        }
+
+        val parsed = VTodoMapper.parseIcs(ics)
+        assertNotNull(parsed)
+        assertEquals(listOf("kotlin", "dev,ops;team"), parsed!!.categories)
+        assertEquals(scopes, parsed.tagScopes)
+    }
 }

@@ -1,0 +1,24 @@
+-- Migration 16: Bump Deepr.updatedAt when tag visibility (isGlobal) or TagProfiles bindings change.
+CREATE TRIGGER IF NOT EXISTS trg_tags_after_update
+AFTER UPDATE OF name, isGlobal ON Tags
+BEGIN
+UPDATE Deepr
+SET updatedAt = CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)
+WHERE id IN (SELECT linkId FROM LinkTags WHERE tagId = new.id);
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_tagprofiles_after_insert
+AFTER INSERT ON TagProfiles
+BEGIN
+UPDATE Deepr
+SET updatedAt = CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)
+WHERE id IN (SELECT linkId FROM LinkTags WHERE tagId = new.tagId);
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_tagprofiles_after_delete
+AFTER DELETE ON TagProfiles
+BEGIN
+UPDATE Deepr
+SET updatedAt = CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)
+WHERE id IN (SELECT linkId FROM LinkTags WHERE tagId = old.tagId);
+END;
